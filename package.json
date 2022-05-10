@@ -1,0 +1,51 @@
+{
+	"name": "radish-language-extension",
+	"description": "Radish Language Extension with Node.JS",
+	"author": "Microsoft Corporation",
+	"license": "MIT",
+	"version": "1.0.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/teo67/RadishExtension"
+	},
+	"publisher": "teo67",
+	"categories": [],
+	"keywords": [
+		"multi-root ready"
+	],
+	"engines": {
+		"vscode": "^1.63.0"
+	},
+	"activationEvents": [
+		"onLanguage:plaintext"
+	],
+	"main": "./client/src/extension.js",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "Configuration",
+			"properties": {
+				"radishLanguageServer.maxNumberOfProblems": {
+					"scope": "resource",
+					"type": "number",
+					"default": 100,
+					"description": "Controls the maximum number of problems produced by the server."
+				},
+				"radishLanguageServer.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "verbose",
+					"description": "Traces the communication between VS Code and the language server."
+				}
+			}
+		}
+	},
+	"devDependencies": {
+		"@types/node": "^14.17.0"
+	}
+}
