@@ -1,38 +1,25 @@
-"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-/* --------------------------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for license information.
- * ------------------------------------------------------------------------------------------ */
-const node_1 = require("vscode-languageserver/node");
-const vscode_languageserver_textdocument_1 = require("vscode-languageserver-textdocument");
-// Create a connection for the server, using Node's IPC as a transport.
-// Also include all preview / proposed LSP features.
-const connection = (0, node_1.createConnection)(node_1.ProposedFeatures.all);
-// Create a simple text document manager.
-const documents = new node_1.TextDocuments(vscode_languageserver_textdocument_1.TextDocument);
-let hasConfigurationCapability = false;
-let hasWorkspaceFolderCapability = false;
-let hasDiagnosticRelatedInformationCapability = false;
+const completionresolve = require('./completionresolve.js');
+const completion = require('./completion.js');
+const { documents, connection, documentSettings, languageserver, capabilities } = require('./global.js');
+const validate = require('./validate.js');
+const assess = require('./assess.js');
 connection.onInitialize((params) => {
-    const capabilities = params.capabilities;
-    // Does the client support the `workspace/configuration` request?
-    // If not, we fall back using global settings.
-    hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
-    hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
-    hasDiagnosticRelatedInformationCapability = !!(capabilities.textDocument &&
-        capabilities.textDocument.publishDiagnostics &&
-        capabilities.textDocument.publishDiagnostics.relatedInformation);
+    const _capabilities = params.capabilities;
+    capabilities.configuration = !!(_capabilities.workspace && !!_capabilities.workspace.configuration);
+    capabilities.workspaceFolder = !!(_capabilities.workspace && !!_capabilities.workspace.workspaceFolders);
+    capabilities.diagnostics = !!(_capabilities.textDocument &&
+        _capabilities.textDocument.publishDiagnostics &&
+        _capabilities.textDocument.publishDiagnostics.relatedInformation);
     const result = {
         capabilities: {
-            textDocumentSync: node_1.TextDocumentSyncKind.Incremental,
-            // Tell the client that this server supports code completion.
+            textDocumentSync: languageserver.TextDocumentSyncKind.Incremental,
             completionProvider: {
                 resolveProvider: true
             }
         }
     };
-    if (hasWorkspaceFolderCapability) {
+    if (capabilities.workspaceFolder) {
         result.capabilities.workspace = {
             workspaceFolders: {
                 supported: true
@@ -42,36 +29,29 @@ connection.onInitialize((params) => {
     return result;
 });
 connection.onInitialized(() => {
-    if (hasConfigurationCapability) {
-        // Register for all configuration changes.
-        connection.client.register(node_1.DidChangeConfigurationNotification.type, undefined);
+    if (capabilities.configuration) {
+        connection.client.register(languageserver.DidChangeConfigurationNotification.type, undefined);
     }
-    if (hasWorkspaceFolderCapability) {
+    if (capabilities.workspaceFolder) {
         connection.workspace.onDidChangeWorkspaceFolders(_event => {
             console.log('Workspace folder change event received.');
         });
     }
 });
-// The global settings, used when the `workspace/configuration` request is not supported by the client.
-// Please note that this is not the case when using this server with the client provided in this example
-// but could happen with other clients.
+
 const defaultSettings = { maxNumberOfProblems: 1000 };
 let globalSettings = defaultSettings;
-// Cache the settings of all open documents
-const documentSettings = new Map();
+
 connection.onDidChangeConfiguration(change => {
-    if (hasConfigurationCapability) {
-        // Reset all cached document settings
+    if (capabilities.configuration) {
         documentSettings.clear();
-    }
-    else {
+    } else {
         globalSettings = ((change.settings.radishLanguageServer || defaultSettings));
     }
-    // Revalidate all open text documents
-    documents.all().forEach(validateTextDocument);
+    documents.all().forEach(validate);
 });
 function getDocumentSettings(resource) {
-    if (!hasConfigurationCapability) {
+    if (!capabilities.configuration) {
         return Promise.resolve(globalSettings);
     }
     let result = documentSettings.get(resource);
@@ -84,82 +64,17 @@ function getDocumentSettings(resource) {
     }
     return result;
 }
-// Only keep settings for open documents
 documents.onDidClose(e => {
-    documentSettings.delete(e.document.uri);
+    documentSettings.delete(e.document.getText());
 });
-// The content of a text document has changed. This event is emitted
-// when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-    validateTextDocument(change.document);
+    console.log(`changed: ${change.document.version} ${new Date().getSeconds()}`);
+    assess(change.document);
 });
-async function validateTextDocument(textDocument) {
-    // In this simple example we get the settings for every validate run.
-    const settings = await getDocumentSettings(textDocument.uri);
-    // The validator creates diagnostics for all uppercase words length 2 and more
-    const text = textDocument.getText();
-    const diagnostics = [];
-    const diagnostic = {
-        severity: node_1.DiagnosticSeverity.Warning,
-        range: {
-            start: textDocument.positionAt(0),
-            end: textDocument.positionAt(1)
-        },
-        message: `abc`,
-        source: 'ex'
-    };
-    if (hasDiagnosticRelatedInformationCapability) {
-        diagnostic.relatedInformation = [
-            {
-                location: {
-                    uri: textDocument.uri,
-                    range: Object.assign({}, diagnostic.range)
-                },
-                message: 'Spelling matters bozo!!!'
-            }
-        ];
-    }
-    diagnostics.push(diagnostic);
-    // Send the computed diagnostics to VSCode.
-    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
 connection.onDidChangeWatchedFiles(_change => {
-    // Monitored files have change in VSCode
-    console.log('We received a file change event');
+    //console.log('We received a file change event');
 });
-// This handler provides the initial list of the completion items.
-connection.onCompletion((_textDocumentPosition) => {
-    // The pass parameter contains the position of the text document in
-    // which code complete got requested. For the example we ignore this
-    // info and always provide the same completion items.
-    return [
-        {
-            label: 'TypeScript',
-            kind: node_1.CompletionItemKind.Class,
-            data: 1
-        },
-        {
-            label: 'JavaScript',
-            kind: node_1.CompletionItemKind.Text,
-            data: 2
-        }
-    ];
-});
-// This handler resolves additional information for the item selected in
-// the completion list.
-connection.onCompletionResolve((item) => {
-    if (item.data === 1) {
-        item.detail = 'TypeScript details';
-        item.documentation = 'TypeScript documentation';
-    }
-    else if (item.data === 2) {
-        item.detail = 'JavaScript details';
-        item.documentation = 'JavaScript documentation';
-    }
-    return item;
-});
-// Make the text document manager listen on the connection
-// for open, change and close text document events
+connection.onCompletion(completion);
+connection.onCompletionResolve(completionresolve);
 documents.listen(connection);
-// Listen on the connection
 connection.listen();
