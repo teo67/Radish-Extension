@@ -68,7 +68,7 @@ documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
 documents.onDidChangeContent(change => {
-    console.log(`changed: ${change.document.version} ${new Date().getSeconds()}`);
+    //console.log(`changed: ${change.document.version} ${new Date().getSeconds()}`);
     assess(change.document);
 });
 connection.onDidChangeWatchedFiles(_change => {

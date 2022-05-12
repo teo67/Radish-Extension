@@ -1,35 +1,37 @@
 const { cached, languageserver } = require('./global.js');
+const lex = require('./parser/Lexing/Lexer.js');
+const Reader = require('./parser/CountingReader.js');
 /*
 changed = false: assessing either in progress or done, no further changes
 changed = true: assessing in progress and will repeat once done
 */
-const process = async document => { // arbitrary synchronous process with high time complexity (~1 second execution)
-    let j = 0; 
-    for(let i = 0; i < 2000000000; i++) {
-        j += i;
-    }
-    console.log(j);
-}
 const assess = async document => {
+    console.log("starting");
     const version = document.version;
-    await new Promise((resolve, reject) => setTimeout(resolve, 1000)); // cancel process if a newer version comes up within a second (depends on typing speed of the person)
-    if(version != document.version) {
-        //console.log("cancelling...");
+    await new Promise((resolve, reject) => setTimeout(resolve, 1000));
+    const version2 = document.version;
+    if(version != version2 && !(cached[document.uri] !== undefined && version2 - cached[document.uri].stamp > 20)) {
         return;
     }
+    if(cached[document.uri] !== undefined && cached[document.uri].stamp == version2) {
+        return;
+    }
+    console.log("running " + document.getText());
     if(cached[document.uri] === undefined) {
         cached[document.uri] = {
-            vars: []
+            vars: [], 
+            stamp: -1
         };
     }
-    //console.log("starting assess");
-    //process();
-    //console.log("ending assess");
-    cached[document.uri].vars = [{
-        label: `${document.getText()[0]}  b`,
-        kind: languageserver.CompletionItemKind.Text,
-        data: 1
-    }];
+    const reader = new Reader(document);
+    while(!reader.EndOfStream) {
+        console.log(lex(reader));
+        //console.log(lex(reader));
+    }
+    cached[document.uri].stamp = version2;
+    console.log(
+        document.getText()
+    );
     return;
 }
 module.exports = assess;
