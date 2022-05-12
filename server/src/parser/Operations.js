@@ -1,4 +1,8 @@
-const lex = require('../Lexing/Lexer.js');
+const lex = require('./Lexing/Lexer.js');
+const Scope = require('./Scope.js');
+const Variable = require('./Variable.js');
+const { textdocument, languageserver } = require('../global.js');
+const { CompletionItemKind } = require('vscode-languageserver');
 class Operations {
     static OpKeywords = [
         "if", "elseif", "else", 
@@ -11,9 +15,10 @@ class Operations {
     ];
     constructor(reader) {
         this.reader = reader;
-        Stored = null;
-        PrevRow = -1;
-        PrevCol = -1;
+        this.Stored = null;
+        this.PrevRow = -1;
+        this.PrevCol = -1;
+        this.currentInt = 0;
     }
 
     static IsKeyword(input) {
@@ -63,131 +68,132 @@ class Operations {
         return ran;
     }
 
-    ParseScope() {
-        Operators.ExpressionSeparator returning = new Operators.ExpressionSeparator(Row, Col);
-        LexEntry read = Read();
+    ParseScope() { //returns scope
+        const returning = new Scope(this.Row, this.Col);
+        let read = this.Read();
         while(read.Type != TokenTypes.ENDOFFILE && !(read.Type == TokenTypes.SYMBOL && read.Val == "}")) {
             if(read.Type == TokenTypes.OPERATOR && read.Val == "if") {
-                Stored = read;
-                returning.AddValue(ParseIfs());
+                this.Stored = read;
+                const ifs = this.ParseIfs(returning);
+                for(const _if of ifs) {
+                    returning.append(_if);
+                }
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "while") {
-                RequireSymbol("(");
-                IOperator exp = ParseExpression();
-                RequireSymbol(")");
-                RequireSymbol("{");
-                IOperator scope = ParseScope();
-                RequireSymbol("}");
-                returning.AddValue(new Operators.While(stack, exp, scope, Row, Col));
+                this.RequireSymbol("(");
+                returning.addVar(this.ParseExpression());
+                this.RequireSymbol(")");
+                this.RequireSymbol("{");
+                returning.append(this.ParseScope());
+                this.RequireSymbol("}");
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "for") {
-                RequireSymbol("(");
-                Operators.ListSeparator list = ParseList();
-                RequireSymbol(")");
-                RequireSymbol("{");
-                IOperator body = ParseScope();
-                RequireSymbol("}");
-                returning.AddValue(new Operators.Loop(stack, list, body, Row, Col));
+                this.RequireSymbol("(");
+                const innerScope = new Scope(this.Row, this.Col);
+                innerScope.addVar(this.ParseLi());
+                this.RequireSymbol(")");
+                this.RequireSymbol("{");
+                innerScope.append(this.ParseScope());
+                this.RequireSymbol("}");
+                returning.append(innerScope);
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "cancel" || read.Val == "continue" || read.Val == "end")) {
-                Print("parsing end/c/c statement");
-                returning.AddValue(new Operators.ReturnType(read.Val, Row, Col));
+                // nothing to do here
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "harvest" || read.Val == "h")) {
-                Print("parsing out statement");
-                IOperator carrying = ParseExpression();
-                returning.AddValue(new Operators.ReturnType("harvest", Row, Col, carrying));
+                returning.addVar(this.ParseExpression());
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "try") {
-                Print("parsing try/catch");
-                RequireSymbol("{");
-                IOperator tryScope = ParseScope();
-                RequireSymbol("}");
-                LexEntry next = Read();
+                this.RequireSymbol("{");
+                returning.append(this.ParseScope());
+                this.RequireSymbol("}");
+                const next = this.Read();
                 if(next.Type == TokenTypes.OPERATOR && next.Val == "catch") {
-                    RequireSymbol("{");
-                    IOperator catchScope = ParseScope();
-                    RequireSymbol("}");
-                    returning.AddValue(new Operators.TryCatch(tryScope, catchScope, stack, Row, Col));
+                    this.RequireSymbol("{");
+                    returning.append(this.ParseScope());
+                    this.RequireSymbol("}");
                 } else {
-                    throw Error("Expecting catch phrase after try {}");
+                    throw this.Error("Expecting catch phrase after try {}");
                 }
             } else {
-                Print("parsing expression");
-                Stored = read;
-                returning.AddValue(ParseExpression());
+                this.Stored = read;
+                returning.addVar(this.ParseExpression());
             }
-            read = Read();
+            read = this.Read();
         }
-        Stored = read;
+        this.Stored = read;
         return returning;
     }
 
-    private Operators.IfChain ParseIfs() {
-        Print("begin if chain");
-        Operators.IfChain returning = new Operators.IfChain(Row, Col);
-        LexEntry IF = Read();
+    ParseIfs(outerscope) { // array of scopes
+        const returning = [];
+        const IF = this.Read();
         if(!(IF.Type == TokenTypes.OPERATOR && IF.Val == "if")) {
-            throw new RadishException("Expecting if statement!");
+            throw this.Error("Expecting if statement!");
         }
-        returning.AddValue(ParseIf());
-        LexEntry read = Read();
+        returning.push(this.ParseIf(outerscope));
+        let read = this.Read();
         while(read.Type == TokenTypes.OPERATOR && read.Val == "elseif") {
-            returning.AddValue(ParseIf());
-            read = Read();
+            returning.push(this.ParseIf(outerscope));
+            read = this.Read();
         }
         if(read.Type == TokenTypes.OPERATOR && read.Val == "else") {
-            RequireSymbol("{");
-            IOperator scope = ParseScope();
-            RequireSymbol("}");
-            returning.AddValue(new Operators.If(stack, new Operators.Boolean(true, stack, Row, Col), scope, Row, Col));
+            this.RequireSymbol("{");
+            returning.push(this.ParseScope());
+            this.RequireSymbol("}");
         } else {
-            Stored = read;
+            this.Stored = read;
         }
         return returning;
     }
 
-    private Operators.If ParseIf() {
-        RequireSymbol("(");
-        IOperator li = ParseExpression();
-        RequireSymbol(")");
-        RequireSymbol("{");
-        IOperator scope = ParseScope();
-        RequireSymbol("}");
-        return new Operators.If(stack, li, scope, Row, Col);
+    ParseIf(outerscope) { // single scope
+        this.RequireSymbol("(");
+        outerscope.addVar(this.ParseExpression());
+        this.RequireSymbol(")");
+        this.RequireSymbol("{");
+        const returning = this.ParseScope();
+        this.RequireSymbol("}");
+        return returning;
     }
 
-    private T ParseLi<T>(Func<T> init, Action<T> onEach) {
-        Print("begin list");
-        T returning = init();
-        LexEntry read = Read();
+    ParseLi(params = false) { // list of varis
+        const returning = [];
+        let read = this.Read();
         if(read.Type == TokenTypes.SYMBOL && (read.Val == "]" || read.Val == ")")) { // empty list
-            Stored = read;
+            this.Stored = read;
             return returning;
         }
         while(true) { 
-            Print("parsing list element");
-            Stored = read;
-            onEach(returning);
+            this.Stored = read;
+            if(params) {
+                let key = this.Read();
+                if(key.Type != TokenTypes.KEYWORD) {
+                    throw this.Error("Expecting a function parameter!");
+                }
+                LexEntry next = Read();
+                IOperator? exp = null;
+                if(next.Val == "plant" || next.Val == "p") {
+                    exp = ParseExpression();
+                } else {
+                    Stored = next;
+                }
+                returning.Item1.Add(key.Val);
+                returning.Item2.Add(exp);
+                returning.push(new Variable(this.Read(), CompletionItemKind.Variable, this.currentInt, "", ""));
+                this.currentInt++;
+            } else {
+                returning = returning.concat(this.ParseExpression());
+            }
             
-            LexEntry next = Read();
+            const next = this.Read();
 
             if(!(next.Type == TokenTypes.SYMBOL && next.Val == ",")) {
-                Stored = next;
+                this.Stored = next;
                 break;
-            } else {
-                Print("found comma");
             }
 
-            read = Read();
+            read = this.Read();
         }
         return returning;
     }
 
-    private Operators.ListSeparator ParseList() {
-        return ParseLi<Operators.ListSeparator>(() => {
-            return new Operators.ListSeparator(stack, Row, Col);
-        }, (Operators.ListSeparator returning) => {
-            returning.AddValue(ParseExpression());
-        });
-    }
-
-    private (List<string>, List<IOperator?>) ParseArgs() {
+    ParseArgs() {
         return ParseLi<(List<string>, List<IOperator?>)>(() => {
             return (new List<string>(), new List<IOperator?>());
         }, ((List<string>, List<IOperator?>) returning) => {
