@@ -15,7 +15,8 @@ connection.onInitialize((params) => {
         capabilities: {
             textDocumentSync: languageserver.TextDocumentSyncKind.Incremental,
             completionProvider: {
-                resolveProvider: true
+                resolveProvider: true,
+                triggerCharacters: ['.']
             }
         }
     };
@@ -69,7 +70,7 @@ documents.onDidClose(e => {
 });
 documents.onDidChangeContent(change => {
     //console.log(`changed: ${change.document.version} ${new Date().getSeconds()}`);
-    assess(change.document);
+    assess(change.document, connection);
 });
 connection.onDidChangeWatchedFiles(_change => {
     //console.log('We received a file change event');

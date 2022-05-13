@@ -75,16 +75,13 @@ class Operations {
                 this.RequireSymbol("}");
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "for") {
                 this.RequireSymbol("(");
-                const innerScope = new Scope(this.Row, this.Col);
-                const saved2 = this.cs;
-                this.cs = innerScope;
-                this.ParseLi();
-                this.RequireSymbol(")");
-                this.RequireSymbol("{");
-                this.ParseScope();
-                this.RequireSymbol("}");
-                saved2.append(this.cs);
-                this.cs = saved2;
+                this.ScopeWith(() => {
+                    this.ParseLi();
+                    this.RequireSymbol(")");
+                    this.RequireSymbol("{");
+                    this.ParseScope();
+                    this.RequireSymbol("}");
+                });
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "cancel" || read.Val == "continue" || read.Val == "end")) {
                 // nothing to do here
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "harvest" || read.Val == "h")) {
@@ -108,10 +105,21 @@ class Operations {
             read = this.Read();
         }
         this.Stored = read;
+        this.cs.end(this.Row, this.Col);
         if(saved !== null) {
             saved.append(this.cs);
             this.cs = saved;
         }
+    }
+
+    ScopeWith(inner) {
+        const saved = this.cs;
+        const newscope = new Scope(this.Row, this.Col);
+        this.cs = newscope;
+        inner();
+        newscope.end(this.Row, this.Col);
+        saved.append(newscope);
+        this.cs = saved;
     }
 
     ParseIfs() {
@@ -307,16 +315,13 @@ class Operations {
                             }
                             this.RequireSymbol("{");
                             if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
-                                const newscope = new Scope(this.Row, this.Col);
-                                const saved = this.cs;
-                                this.cs = newscope;
-                                if(newType.Val == "plant" || newType.Val == "p") {
-                                    this.cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "", ""));
-                                    this.currentInt++;
-                                }
-                                this.ParseScope();
-                                saved.append(newscope);
-                                this.cs = saved;
+                                this.ScopeWith(() => {
+                                    if(newType.Val == "plant" || newType.Val == "p") {
+                                        this.cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "", ""));
+                                        this.currentInt++;
+                                    }
+                                    this.ParseScope();
+                                });
                             } else {
                                 throw this.Error("Only plant and harvest functions are valid in this context!");
                             }
@@ -334,17 +339,14 @@ class Operations {
                 throw this.Error(`Expecting a variable name instead of ${next.Val}!`);
             }
             if(returned.Val == "tool" || returned.Val == "t") {
-                const newscope = new Scope(this.Row, this.Col);
-                const saved = this.cs
-                this.cs = newscope;
-                this.RequireSymbol("(");
-                this.ParseLi(true);
-                this.RequireSymbol(")");
-                this.RequireSymbol("{");
-                this.ParseScope();
-                this.RequireSymbol("}");
-                saved.append(newscope);
-                this.cs = saved;
+                this.ScopeWith(() => {
+                    this.RequireSymbol("(");
+                    this.ParseLi(true);
+                    this.RequireSymbol(")");
+                    this.RequireSymbol("{");
+                    this.ParseScope();
+                    this.RequireSymbol("}");
+                });
                 return;
             }
             if(returned.Val == "null" || returned.Val == "all") {

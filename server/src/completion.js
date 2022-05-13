@@ -1,8 +1,35 @@
 const { languageserver, cached } = require('./global');
+const through = (scope, returning, position) => {
+    for(const vari of scope.vars) {
+        returning.push(vari);
+    }
+    for(const inner of scope.innerscopes) {
+        //console.log(`position: (line ${position.line + 1}, char ${position.character}), inner: (start: (line ${inner.startline}, char ${inner.startchar}), end: (line ${inner.endline}, char ${inner.endchar}))`);
+        if(position.line + 1 < inner.startline || position.line + 1 > inner.endline) {
+            continue;
+        }
+        if(position.line + 1 == inner.startline && position.character < inner.startchar) {
+            continue;
+        }
+        if(position.line + 1 == inner.endline && position.character > inner.endchar) {
+            continue;
+        }
+        through(inner, returning, position);
+        break;
+    }
+    return;
+}
 module.exports = _textDocumentPosition => {
-    // The pass parameter contains the position of the text document in
-    // which code complete got requested. For the example we ignore this
-    // info and always provide the same completion items.
-    //console.log(cached[_textDocumentPosition.textDocument.uri].vars);
-    //return cached[_textDocumentPosition.textDocument.uri].vars;
+    // {
+    //     textDocument: { uri: 'file:///Users/h205p3/Desktop/code/txt/test.txt' },
+    //     position: { line: 3, character: 2 },
+    //     context: { triggerKind: 1 }
+    //   }
+    const cs = cached[_textDocumentPosition.textDocument.uri].cs;
+    if(cs === null) {
+        return [];
+    }
+    let returning = [];
+    through(cs, returning, _textDocumentPosition.position);
+    return returning;
 }
