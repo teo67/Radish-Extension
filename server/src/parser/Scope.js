@@ -14,9 +14,9 @@ class Scope {
     append(scope) {
         this.innerscopes.push(scope);
     }
-    addVar(varis = null) {
-        if(varis !== null) {
-            this.vars = this.vars.concat(varis);
+    addVar(vari = null) {
+        if(vari !== null) {
+            this.vars.push(vari);
         }
     }
 }

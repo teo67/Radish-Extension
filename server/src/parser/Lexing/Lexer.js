@@ -1,5 +1,14 @@
 const TokenTypes = require('../TokenTypes.js');
 const LexEntry = require('./LexEntry.js');
+const OpKeywords = [
+    "if", "elseif", "else", 
+    "while", "for", 
+    "dig", "d", "tool", "t", "plant", "p",
+    "harvest", "h", "cancel", "continue", "end",
+    "new", "null", "class",
+    "public", "private", "protected", "static",
+    "try", "catch", "throw", "import", "all", "pass"
+];
 const CharTypes = {
     letter: 0,
     digit: 1, 
@@ -88,9 +97,9 @@ const Convert = (current, currentRaw) => {
         if(currentRaw == "yes" || currentRaw == "no") {
             type = TokenTypes.BOOLEAN;
         }
-        // if(Operations.IsKeyword(currentRaw)) { FIX
-        //     type = TokenTypes.OPERATOR;
-        // }
+        if(OpKeywords.includes(currentRaw)) {
+            type = TokenTypes.OPERATOR;
+        }
         //Console.WriteLine($"Lexer returning {type}: {currentRaw}");
         return new LexEntry(type, currentRaw);
     }

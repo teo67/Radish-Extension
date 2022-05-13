@@ -1,6 +1,6 @@
 class RadishException extends Error {
     constructor(message, row, col) {
-        this.message = message;
+        super(message);
         this.row = row;
         this.col = col;
     }
