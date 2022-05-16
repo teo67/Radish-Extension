@@ -1,11 +1,13 @@
 class Scope {
-    constructor(_startline, _startchar) {
+    constructor(_startline, _startchar, _enclosing = null, _objectlabel = null) {
         this.startline = _startline;
         this.startchar = _startchar;
         this.endline = this.startline;
         this.endchar = this.startchar;
         this.vars = [];
         this.innerscopes = [];
+        this.objectlabel = _objectlabel;
+        this.enclosing = _enclosing;
     }
     end(line, char) {
         this.endline = line;

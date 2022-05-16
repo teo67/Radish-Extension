@@ -18,6 +18,7 @@ class CountingReader {
         if(returning == '\r' || returning == '\n') {
             this.row++;
             this.col = 1;
+            this.index++;
         } else {
             this.col++;
         }

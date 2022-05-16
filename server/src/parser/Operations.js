@@ -1,9 +1,31 @@
 const lex = require('./Lexing/Lexer.js');
 const Scope = require('./Scope.js');
 const Variable = require('./Variable.js');
-const { textdocument, languageserver } = require('../global.js');
+const { textdocument, languageserver, tokenTypes, tokenModifiers } = require('../global.js');
 const { CompletionItemKind } = require('vscode-languageserver');
 const TokenTypes = require('./TokenTypes.js');
+// const typeMap = {};
+// for(let i = 0; i < tokenTypes.length; i++) { // compile reverse arrays
+//     typeMap[tokenTypes[i]] = i;  
+// }
+// const modifierMap = {};
+// for(let i = 0; i < tokenModifiers.length; i++) {
+//     modifierMap[tokenModifiers[i]] = i;  
+// }
+class ReturnType {
+    constructor(_type, _raw = []) {
+        this.type = _type; // for example: CompletionItemKind.Variable
+        this.raw = _raw; // array of string|scope
+    }
+    static Reference = 525 // enum to return type variable
+}
+class Dependency {
+    constructor(_target, _reference, _find) {
+        this.target = _target; // variable to be edited (array of string|scope)
+        this.reference = _reference; // reference scope to begin search
+        this.find = _find; // rt
+    }
+}
 class Operations {
     constructor(reader) {
         this.reader = reader;
@@ -12,6 +34,10 @@ class Operations {
         this.PrevCol = -1;
         this.currentInt = 0;
         this.cs = null; // current scope
+        this.dependencies = [];
+        /* example: [
+            [a]
+        ] */
     }
 
     RequireSymbol(input) {
@@ -60,7 +86,8 @@ class Operations {
     ParseScope() { //returns scope
         // console.log("parsing scope");
         const saved = this.cs;
-        this.cs = new Scope(this.Row, this.Col);
+        const newscope = new Scope(this.Row, this.Col, this.cs);
+        this.cs = newscope;
         let read = this.Read();
         while(read.Type != TokenTypes.ENDOFFILE && !(read.Type == TokenTypes.SYMBOL && read.Val == "}")) {
             if(read.Type == TokenTypes.OPERATOR && read.Val == "if") {
@@ -105,21 +132,23 @@ class Operations {
             read = this.Read();
         }
         this.Stored = read;
-        this.cs.end(this.Row, this.Col);
+        newscope.end(this.Row, this.Col);
         if(saved !== null) {
-            saved.append(this.cs);
+            saved.append(newscope);
             this.cs = saved;
         }
+        return newscope;
     }
 
     ScopeWith(inner) {
         const saved = this.cs;
-        const newscope = new Scope(this.Row, this.Col);
+        const newscope = new Scope(this.Row, this.Col, this.cs);
         this.cs = newscope;
         inner();
         newscope.end(this.Row, this.Col);
         saved.append(newscope);
         this.cs = saved;
+        return newscope;
     }
 
     ParseIfs() {
@@ -173,7 +202,7 @@ class Operations {
                 } else {
                     this.Stored = next;
                 }
-                this.cs.addVar(new Variable(key, CompletionItemKind.Variable, this.currentInt, "", ""));
+                this.cs.addVar(new Variable(key.Val, CompletionItemKind.Variable, this.currentInt, "", ""));
                 this.currentInt++;
             } else {
                 this.ParseExpression();
@@ -191,12 +220,12 @@ class Operations {
     }
 
     Parse(lowerfunction, cases, extracheck = null) { 
-        this[lowerfunction]();
+        const a = this[lowerfunction]();
         let next = this.Read();
         const check = () => {
             if(next.Type == TokenTypes.OPERATOR) {
                 if(extracheck != null) {
-                    const result = extracheck(next);
+                    const result = extracheck(next, a);
                     if(result !== null) {
                         return result;
                     }
@@ -212,36 +241,43 @@ class Operations {
         while(check()) {
             next = this.Read();
         }
+        return a; // return first value parsed for type-checking purposes
     }
 
     ParseExpression() {
         // console.log("parsing expression");
-        this.Parse("ParseCombiners", ["plant", "p", "+=", "-=", "*=", "/=", "%="], (next) => {
+        return this.Parse("ParseCombiners", ["plant", "p", "+=", "-=", "*=", "/=", "%="], (next, a) => {
             if(next.Val == "++" || next.Val == "--") {
                 return false; // end expression
             }
-            return null;
+            if(next.Val == "plant" || next.Val == "p") {
+                const other = this.ParseCombiners();
+                if(other.type != CompletionItemKind.Variable) { // if variable, nothing needs to be changed
+                    this.dependencies.push(new Dependency(a.raw, this.cs, other));
+                }
+                return true; // continue in next loop
+            }
+            return null; // nothing happened
         });
     }
-
     ParseCombiners() {
         // console.log("parsing combiners");
-        this.Parse("ParseComparators", ["&&", "||"]);
+        return this.Parse("ParseComparators", ["&&", "||"]);
     }
 
     ParseComparators() {
         // console.log("parsing comparators");
-        this.Parse("ParseTerms", ["==", ">=", "<=", ">", "<", "!="]);
+        return this.Parse("ParseTerms", ["==", ">=", "<=", ">", "<", "!="]);
     }
 
     ParseTerms() {
         // console.log("parsing terms");
-        this.Parse("ParseFactors", ["+", "-"]);
+        return this.Parse("ParseFactors", ["+", "-"]);
     }
 
     ParseFactors() {
         // console.log("parsing factors");
-        this.Parse("ParseNegatives", ["*", "/", "%"]);
+        return this.Parse("ParseNegatives", ["*", "/", "%"]);
     }
 
     ParseNegatives() {
@@ -249,27 +285,32 @@ class Operations {
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "-" || returned.Val == "!") {
-                this.ParseNegatives();
-                return;
+                return this.ParseNegatives();
             }
         }
         this.Stored = returned;
-        this.ParseCalls();
+        return this.ParseCalls();
     }
     
     ParseCalls() {
         // console.log("parsing calls");
-        this.ParseLowest();
+        
+        let isUnknown = false; // if so return variable no matter what
+        let stillOriginal = true; // if so return original lowest result
+        const returned = this.ParseLowest();
+        let returning = returned.raw;
         let next = this.Read();
         const checkCheck = () => {
             if(next.Val == "(") {
                 this.ParseLi();
                 this.RequireSymbol(")");
+                isUnknown = true;
                 return true;
             }
             if(next.Val == "[") {
                 this.ParseExpression();
                 this.RequireSymbol("]");
+                isUnknown = true;
                 return true;
             }
             return false;
@@ -280,7 +321,8 @@ class Operations {
                     next = this.Read();
                 }
                 if(next.Val == ".") {
-                    this.Read();
+                    stillOriginal = false;
+                    returning.push(this.Read().Val);
                     return true;
                 }
             }
@@ -290,6 +332,14 @@ class Operations {
         while(check()) {
             next = this.Read();
         }
+        if(isUnknown) {
+            return new ReturnType(CompletionItemKind.Variable);
+        }
+        if(stillOriginal) {
+            return returned;
+        }
+        // if clear accessor
+        return new ReturnType(ReturnType.Reference, returning);
     }
 
     ParseLowest() {
@@ -328,13 +378,13 @@ class Operations {
                             this.RequireSymbol("}");
                         }
                         this.RequireSymbol("}");
-                        return;
+                    } else {
+                        this.Stored = afterNext;
                     }
-                    this.Stored = afterNext;
                     // console.log("adding var");
                     this.cs.addVar(new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", ""));
                     this.currentInt++;
-                    return;
+                    return new ReturnType(CompletionItemKind.Variable, [next.Val]);
                 }
                 throw this.Error(`Expecting a variable name instead of ${next.Val}!`);
             }
@@ -347,14 +397,14 @@ class Operations {
                     this.ParseScope();
                     this.RequireSymbol("}");
                 });
-                return;
+                return new ReturnType(CompletionItemKind.Function);
             }
             if(returned.Val == "null" || returned.Val == "all") {
-                return;
+                return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "throw" || returned.Val == "pass" || returned.Val == "import") {
                 ParseExpression();
-                return;
+                return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "class") {
                 const next = this.Read();
@@ -364,34 +414,36 @@ class Operations {
                     this.Stored = next;
                 }
                 this.RequireSymbol("{");
-                this.ParseScope();
+                const cs = this.ParseScope();
                 this.RequireSymbol("}");
-                return;
+                return new ReturnType(CompletionItemKind.Class, [cs]);
             }
             if(returned.Val == "new") {
-                this.Read();
+                const next = this.Read();
                 this.RequireSymbol("(");
                 this.ParseLi();
                 this.RequireSymbol(")");
-                return;
+                return new ReturnType(CompletionItemKind.Variable, [next.Val]);
             }
-        } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN || returned.Type == TokenTypes.KEYWORD) {
-            return;
+        } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN) {
+            return new ReturnType(CompletionItemKind.Variable);
+        } else if(returned.Type == TokenTypes.KEYWORD) {
+            return new ReturnType(ReturnType.Reference, returned.Val);
         } else if(returned.Type == TokenTypes.SYMBOL) {
             if(returned.Val == "(") {
-                this.ParseExpression();
+                const rt = this.ParseExpression();
                 this.RequireSymbol(")");
-                return;
+                return rt;
             } 
             if(returned.Val == "[") {
                 this.ParseLi();
                 this.RequireSymbol("]");
-                return;
+                return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "{") {
-                this.ParseScope();
+                const cs = this.ParseScope();
                 this.RequireSymbol("}");
-                return;
+                return new ReturnType(CompletionItemKind.Variable, [cs]);
             }
         }
         throw this.Error(`Could not parse value: ${returned.Val}`);

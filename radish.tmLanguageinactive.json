@@ -1,0 +1,86 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "radish",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#modifiers"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#constants"
+		},
+		{
+			"include": "#operators"
+		},
+		{
+			"include": "#declarations"
+		},
+		{
+			"include": "#variables"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"name": "keyword.control.radish",
+			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import)\\b"
+		},
+		"operators": {
+			"name": "keyword.operator.radish",
+			"match": "(\\b(plant|p)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:])"
+		},
+		"modifiers": {
+			"name": "storage.modifier.radish",
+			"match": "\\b(static|public|private|protected)\\b"
+		},
+		"comments": {
+			"name": "comment.block.radish",
+			"begin": "#",
+			"end": "#"
+		},
+		"constants": {
+			"patterns": [{
+				"name": "constant.language.radish",
+				"match": "\\b(yes|no|null|all)\\b"
+			}, {
+				"name": "constant.numeric.radish",
+				"begin": "[0-9]",
+				"end": "(?![0-9\\.])"
+			}]
+		},
+		"strings": {
+			"name": "string.quoted.double.radish",
+			"begin": "\"",
+			"end": "\""
+		}, 
+		"declarations": {
+			"name": "storage.type.radish",
+			"match": "\\b(d|dig)\\b"
+		}, 
+		"variables": {
+			"patterns": [{
+				"name": "variable.language.radish",
+				"match": "\\b(this|super)\\b"
+			}, {
+				"name": "entity.name.function.radish",
+				"match": "([a-zA-Z\\_\\$])([a-zA-Z0-9\\_\\$]*?)(?=\\()"
+			}, {
+				"name": "variable.language.radish",
+				"begin": "(?<=\\.)[a-zA-Z\\_\\$]",
+				"end": "(?![a-zA-Z0-9\\_\\$])"
+			}, {
+				"name": "variable.other.radish",
+				"begin": "[a-zA-Z\\_\\$]",
+				"end": "(?![a-zA-Z0-9\\_\\$])"
+			}]
+		}
+	},
+	"scopeName": "source.radish"
+}

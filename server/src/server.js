@@ -1,9 +1,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const completionresolve = require('./completionresolve.js');
 const completion = require('./completion.js');
-const { documents, connection, documentSettings, languageserver, capabilities } = require('./global.js');
+const { documents, connection, documentSettings, languageserver, capabilities, tokenTypes, tokenModifiers } = require('./global.js');
 const validate = require('./validate.js');
 const assess = require('./assess.js');
+
 connection.onInitialize((params) => {
     const _capabilities = params.capabilities;
     capabilities.configuration = !!(_capabilities.workspace && !!_capabilities.workspace.configuration);
@@ -17,7 +18,15 @@ connection.onInitialize((params) => {
             completionProvider: {
                 resolveProvider: true,
                 triggerCharacters: ['.']
-            }
+            }//,
+            // semanticTokensProvider: {
+            //     legend: {
+            //         tokenTypes: tokenTypes,
+            //         tokenModifiers: tokenModifiers
+            //     },
+            //     range: true, 
+            //     full: true
+            // }
         }
     };
     if (capabilities.workspaceFolder) {
@@ -77,5 +86,15 @@ connection.onDidChangeWatchedFiles(_change => {
 });
 connection.onCompletion(completion);
 connection.onCompletionResolve(completionresolve);
+// connection.languages.semanticTokens.on(params => {
+//     return {
+//         data: [1,1,3,0,0, 1,1,3,0,0]
+//     };
+// });
+// connection.languages.semanticTokens.onRange(params => {
+//     return {
+//         data: [1,1,3,0,0, 1,1,3,0,0]
+//     };
+// });
 documents.listen(connection);
 connection.listen();

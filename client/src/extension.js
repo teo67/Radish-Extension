@@ -27,8 +27,8 @@ function activate(context) {
     };
     // Options to control the language client
     const clientOptions = {
-        // Register the server for plain text documents
-        documentSelector: [{ scheme: 'file', language: 'plaintext' }],
+        // Register the server for radish documents
+        documentSelector: [{ scheme: 'file', language: 'radish' }],
         synchronize: {
             // Notify the server about file changes to '.clientrc files contained in the workspace
             fileEvents: vscode_1.workspace.createFileSystemWatcher('**/.clientrc')
@@ -39,6 +39,7 @@ function activate(context) {
     // Start the client. This will also launch the server
     client.start();
 }
+
 exports.activate = activate;
 function deactivate() {
     if (!client) {

@@ -17,7 +17,7 @@
 		"vscode": "^1.63.0"
 	},
 	"activationEvents": [
-		"onLanguage:plaintext"
+		"onLanguage:radish"
 	],
 	"main": "./client/src/extension.js",
 	"contributes": {
@@ -43,7 +43,18 @@
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
-		}
+		}, 
+		"languages": [{
+            "id": "radish",
+            "aliases": ["radish", "radish"],
+            "extensions": [".rdsh"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "radish",
+            "scopeName": "source.radish",
+            "path": "./radish.tmLanguage.json"
+        }]
 	},
 	"devDependencies": {
 		"@types/node": "^14.17.0"

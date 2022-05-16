@@ -9,7 +9,9 @@ const capabilities = {
     workspaceFolder: false,
     diagnostics: false
 };
+const tokenTypes = [];
+const tokenModifiers = [];
 const cached = {};
 module.exports = {
-    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2
+    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenModifiers
 };

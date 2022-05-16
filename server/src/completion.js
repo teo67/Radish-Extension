@@ -31,5 +31,6 @@ module.exports = _textDocumentPosition => {
     }
     let returning = [];
     through(cs, returning, _textDocumentPosition.position);
+    //console.log(returning);
     return returning;
 }

@@ -1,8 +1,9 @@
-const { cached, languageserver } = require('./global.js');
-const { Diagnostic, DiagnosticSeverity } = require('./global.js').server2;
+const { cached, languageserver, server2 } = require('./global.js');
+//const { Diagnostic, DiagnosticSeverity } = require('./global.js').server2;
 const lex = require('./parser/Lexing/Lexer.js');
 const Reader = require('./parser/CountingReader.js');
 const Operations = require('./parser/Operations.js');
+const DiagnosticSeverity = server2.DiagnosticSeverity;
 /*
 changed = false: assessing either in progress or done, no further changes
 changed = true: assessing in progress and will repeat once done
@@ -29,6 +30,7 @@ const assess = async (document, connection) => {
     try {
         ops.ParseScope();
         cached[document.uri].cs = ops.cs;
+        console.log(ops.dependencies);
         connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
     } catch(e) {
         console.log("new error");
