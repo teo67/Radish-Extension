@@ -13,17 +13,25 @@ const TokenTypes = require('./TokenTypes.js');
 //     modifierMap[tokenModifiers[i]] = i;  
 // }
 class ReturnType {
-    constructor(_type, _raw = []) {
+    constructor(_type, _raw = [], _baseScope = null, _inherited = null) {
         this.type = _type; // for example: CompletionItemKind.Variable
-        this.raw = _raw; // array of string|scope
+        this.raw = _raw; // array of string
+        this.baseScope = _baseScope;
+        this.inherited = _inherited;
     }
     static Reference = 525 // enum to return type variable
 }
 class Dependency {
     constructor(_target, _reference, _find) {
-        this.target = _target; // variable to be edited (array of string|scope)
+        this.target = _target; // rt
         this.reference = _reference; // reference scope to begin search
         this.find = _find; // rt
+    }
+}
+class PropertyDependency {
+    constructor(_path, _reference) {
+        this.path = _path;
+        this.reference = _reference;
     }
 }
 class Operations {
@@ -35,9 +43,68 @@ class Operations {
         this.currentInt = 0;
         this.cs = null; // current scope
         this.dependencies = [];
-        /* example: [
-            [a]
-        ] */
+        this.propertydependencies = [];
+    }
+
+    FindInScope(target, scope) {
+        for(const vari of scope.vars) {
+            if(vari.inner.label == target) {
+                return vari;
+            }
+        }
+        if(scope.enclosing !== null) {
+            return this.FindInScope(target, scope.enclosing);
+        }
+        return null;
+    }
+
+    FindInVariable(target, vari) {
+        for(const prop of vari.properties) {
+            if(prop.inner.label == target) {
+                return prop;
+            }
+        }
+        if(vari.inherited !== null) {
+            return this.FindInVariable(target, vari.inherited);
+        }
+        return null;
+    }
+
+    HandlePropertyDependency(dep) { // adds various properties to variables
+        const firstFind = this.FindInScope(dep.path[0], dep.reference);
+        if(firstFind === null) {
+            return;
+        }
+        let currentVar = firstFind;
+        //console.log("found first");
+        for(let i = 1; i < dep.path.length - 1; i++) {
+            const found = this.FindInVariable(dep.path[i], currentVar);
+            if(found === null) {
+                if(currentVar.propertydeps[dep.path[i]] === undefined) {
+                    currentVar.propertydeps[dep.path[i]] = [];
+                }
+                currentVar.propertydeps[dep.path[i]].push(dep);
+                return;
+            }
+            currentVar = found;
+        }
+        const lastFind = this.FindInVariable(dep.path[dep.path.length - 1], currentVar);
+        if(lastFind !== null) {
+            return;
+        }
+        //console.log("found second");
+        currentVar.properties.push(new Variable(dep.path[dep.path.length - 1], CompletionItemKind.Variable, this.currentInt, "", ""));
+        this.currentInt++;
+        //console.log("pushed second");
+        const propdeps = currentVar.propertydeps[dep.path[dep.path.length - 1]];
+        //console.log(propdeps);
+        if(propdeps !== undefined) {
+            for(const propdep of propdeps) {
+                this.HandlePropertyDependency(propdep);
+            }
+        }
+        //console.log("done");
+        return;
     }
 
     RequireSymbol(input) {
@@ -131,8 +198,9 @@ class Operations {
             }
             read = this.Read();
         }
-        this.Stored = read;
+        
         newscope.end(this.Row, this.Col);
+        this.Stored = read;
         if(saved !== null) {
             saved.append(newscope);
             this.cs = saved;
@@ -252,9 +320,10 @@ class Operations {
             }
             if(next.Val == "plant" || next.Val == "p") {
                 const other = this.ParseCombiners();
-                if(other.type != CompletionItemKind.Variable) { // if variable, nothing needs to be changed
-                    this.dependencies.push(new Dependency(a.raw, this.cs, other));
+                if(a.raw.length > 1) {
+                    this.propertydependencies.push(new PropertyDependency(a.raw, this.cs));
                 }
+                this.dependencies.push(new Dependency(a, this.cs, other));
                 return true; // continue in next loop
             }
             return null; // nothing happened
@@ -298,7 +367,7 @@ class Operations {
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
         const returned = this.ParseLowest();
-        let returning = returned.raw;
+        const returning = returned.raw;
         let next = this.Read();
         const checkCheck = () => {
             if(next.Val == "(") {
@@ -339,7 +408,7 @@ class Operations {
             return returned;
         }
         // if clear accessor
-        return new ReturnType(ReturnType.Reference, returning);
+        return new ReturnType(ReturnType.Reference, returning, returned.baseScope, returned.inherited);
     }
 
     ParseLowest() {
@@ -384,7 +453,7 @@ class Operations {
                     // console.log("adding var");
                     this.cs.addVar(new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", ""));
                     this.currentInt++;
-                    return new ReturnType(CompletionItemKind.Variable, [next.Val]);
+                    return new ReturnType(CompletionItemKind.Variable, [ next.Val ]);
                 }
                 throw this.Error(`Expecting a variable name instead of ${next.Val}!`);
             }
@@ -408,27 +477,29 @@ class Operations {
             }
             if(returned.Val == "class") {
                 const next = this.Read();
+                let inherited = null;
                 if(next.Type == TokenTypes.SYMBOL && next.Val == ":") {
                     // nothing to do here
+                    inherited = this.Read().Val;
                 } else {
                     this.Stored = next;
                 }
                 this.RequireSymbol("{");
                 const cs = this.ParseScope();
                 this.RequireSymbol("}");
-                return new ReturnType(CompletionItemKind.Class, [cs]);
+                return new ReturnType(CompletionItemKind.Class, [], cs.vars, inherited);
             }
             if(returned.Val == "new") {
                 const next = this.Read();
                 this.RequireSymbol("(");
                 this.ParseLi();
                 this.RequireSymbol(")");
-                return new ReturnType(CompletionItemKind.Variable, [next.Val]);
+                return new ReturnType(CompletionItemKind.Variable, [], null, next.Val); // this way the object gets linked to the class it is derived from while still being treated like an object
             }
         } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN) {
             return new ReturnType(CompletionItemKind.Variable);
         } else if(returned.Type == TokenTypes.KEYWORD) {
-            return new ReturnType(ReturnType.Reference, returned.Val);
+            return new ReturnType(ReturnType.Reference, [ returned.Val ]);
         } else if(returned.Type == TokenTypes.SYMBOL) {
             if(returned.Val == "(") {
                 const rt = this.ParseExpression();
@@ -442,8 +513,13 @@ class Operations {
             }
             if(returned.Val == "{") {
                 const cs = this.ParseScope();
+                // const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
+                // this.currentInt++;
+                // _this.linkedscope = cs;
+                // _this.evaluated = true;
+                // cs.addVar(_this);
                 this.RequireSymbol("}");
-                return new ReturnType(CompletionItemKind.Variable, [cs]);
+                return new ReturnType(CompletionItemKind.Variable, [], cs.vars);
             }
         }
         throw this.Error(`Could not parse value: ${returned.Val}`);

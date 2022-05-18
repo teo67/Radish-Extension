@@ -1,7 +1,7 @@
 const { languageserver, cached } = require('./global');
 const through = (scope, returning, position) => {
     for(const vari of scope.vars) {
-        returning.push(vari);
+        returning.push(vari.inner);
     }
     for(const inner of scope.innerscopes) {
         //console.log(`position: (line ${position.line + 1}, char ${position.character}), inner: (start: (line ${inner.startline}, char ${inner.startchar}), end: (line ${inner.endline}, char ${inner.endchar}))`);
@@ -14,6 +14,7 @@ const through = (scope, returning, position) => {
         if(position.line + 1 == inner.endline && position.character > inner.endchar) {
             continue;
         }
+        //console.log("going to inner scope");
         through(inner, returning, position);
         break;
     }
@@ -25,7 +26,12 @@ module.exports = _textDocumentPosition => {
     //     position: { line: 3, character: 2 },
     //     context: { triggerKind: 1 }
     //   }
-    const cs = cached[_textDocumentPosition.textDocument.uri].cs;
+    //console.log("started completion");
+    const stored = cached[_textDocumentPosition.textDocument.uri];
+    if(stored === undefined) {
+        return [];
+    }
+    const cs = stored.cs;
     if(cs === null) {
         return [];
     }

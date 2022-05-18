@@ -3,11 +3,37 @@ const { cached, languageserver, server2 } = require('./global.js');
 const lex = require('./parser/Lexing/Lexer.js');
 const Reader = require('./parser/CountingReader.js');
 const Operations = require('./parser/Operations.js');
+const Variable = require('./parser/Variable.js');
+const Scope = require('./parser/Scope.js');
 const DiagnosticSeverity = server2.DiagnosticSeverity;
 /*
 changed = false: assessing either in progress or done, no further changes
 changed = true: assessing in progress and will repeat once done
 */
+const printInDetail = (any, numspaces) => {
+    let returning = '';
+    const newindent = `\n${' '.repeat(numspaces)}`;
+    if(any instanceof Scope) {
+        returning += `${newindent}Scope {`;
+        returning += `${newindent}vars: [`;
+        for(const vari of any.vars) {
+            returning += printInDetail(vari, numspaces + 2);
+        }
+        returning += `${newindent}], inner: [`;
+        for(const inner of any.innerscopes) {
+            returning += printInDetail(inner, numspaces + 2);
+        }
+        returning += `${newindent}]${newindent}}`;
+    } else if(any instanceof Variable) {
+        returning += `${newindent}Variable {`;
+        returning += `${newindent}name: ${any.inner.label}, properties: [`;
+        for(const prop of any.properties) {
+            returning += printInDetail(prop, numspaces + 2);
+        }
+        returning += `${newindent}], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
+    }
+    return returning;
+}
 const assess = async (document, connection) => {
     //console.log("starting");
     const version = document.version;
@@ -30,10 +56,16 @@ const assess = async (document, connection) => {
     try {
         ops.ParseScope();
         cached[document.uri].cs = ops.cs;
-        console.log(ops.dependencies);
+        for(const propdep of ops.propertydependencies) {
+            ops.HandlePropertyDependency(propdep);
+        }
+        console.log(printInDetail(ops.cs, 0));
+        //console.log(ops.propertydependencies);
+        //console.log(ops.dependencies);
+        //console.log(ops.cs);
         connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
     } catch(e) {
-        console.log("new error");
+        //console.log("new error");
         const diagnostic = {
 			severity: DiagnosticSeverity.Error,
 			range: {
