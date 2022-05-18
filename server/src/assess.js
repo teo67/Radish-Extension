@@ -15,22 +15,22 @@ const printInDetail = (any, numspaces) => {
     const newindent = `\n${' '.repeat(numspaces)}`;
     if(any instanceof Scope) {
         returning += `${newindent}Scope {`;
-        returning += `${newindent}vars: [`;
+        returning += `${newindent}  vars: [`;
         for(const vari of any.vars) {
-            returning += printInDetail(vari, numspaces + 2);
+            returning += printInDetail(vari, numspaces + 4);
         }
-        returning += `${newindent}], inner: [`;
+        returning += `${newindent}  ], inner: [`;
         for(const inner of any.innerscopes) {
-            returning += printInDetail(inner, numspaces + 2);
+            returning += printInDetail(inner, numspaces + 4);
         }
-        returning += `${newindent}]${newindent}}`;
+        returning += `${newindent}  ]${newindent}}`;
     } else if(any instanceof Variable) {
         returning += `${newindent}Variable {`;
-        returning += `${newindent}name: ${any.inner.label}, properties: [`;
+        returning += `${newindent}  name: ${any.inner.label}, properties: [`;
         for(const prop of any.properties) {
             returning += printInDetail(prop, numspaces + 2);
         }
-        returning += `${newindent}], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
+        returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
     }
     return returning;
 }
@@ -58,6 +58,9 @@ const assess = async (document, connection) => {
         cached[document.uri].cs = ops.cs;
         for(const propdep of ops.propertydependencies) {
             ops.HandlePropertyDependency(propdep);
+        }
+        for(const dep of ops.dependencies) {
+            ops.HandleDependency(dep);
         }
         console.log(printInDetail(ops.cs, 0));
         //console.log(ops.propertydependencies);

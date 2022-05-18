@@ -15,10 +15,13 @@ class CountingReader {
     }
     Read() {
         const returning = this.Peek();
-        if(returning == '\r' || returning == '\n') {
+        if(returning == '\r') {
+            this.index++;
+            return this.Read();
+        }
+        if(returning == '\n') {
             this.row++;
             this.col = 1;
-            this.index++;
         } else {
             this.col++;
         }

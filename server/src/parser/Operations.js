@@ -46,6 +46,72 @@ class Operations {
         this.propertydependencies = [];
     }
 
+    CheckVar(vari, dep) {
+        if(vari === null) {
+            return false;
+        }
+        if(!vari.evaluated) {
+            vari.deps.push(dep);
+            return false;
+        }
+        return true;
+    }
+
+    GetFromRT(rt, dep) { // false = cancel
+        let inherited = null;
+        if(rt.inherited !== null) {
+            //console.log("finding inherited " + rt.inherited);
+            inherited = this.FindInScope(rt.inherited, dep.reference);
+            if(!this.CheckVar(inherited, dep)) {
+                return null;
+            }
+            //console.log("found inherited");
+        }
+        //console.log("" + rt.raw + rt.inherited + inherited);
+        let currentVar = null;
+        let ignoreFirst = false;
+        if(rt.baseScope === null) { // if this is true then inherited will be null
+            currentVar = this.FindInScope(rt.raw[0], dep.reference);
+            ignoreFirst = true;
+        } else {
+            currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", "");
+            this.currentInt++;
+            currentVar.properties = rt.baseScope;
+            currentVar.inherited = inherited;
+            currentVar.evaluated = true;
+        }
+        for(let i = (ignoreFirst ? 1 : 0); i < rt.raw.length; i++) {
+            if(!this.CheckVar(currentVar, dep)) {
+                return null;
+            }
+            currentVar = this.FindInVariable(rt.raw[i], currentVar.properties, currentVar.inherited);
+        }
+        return currentVar; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
+        //, a.b.c... -> c
+    }
+
+    HandleDependency(dep) {
+        const foundTarget = this.GetFromRT(dep.target, dep);
+        if(foundTarget === null) { // no var or failed somewhere
+            return;
+        }
+        if(foundTarget.evaluated) { // already eval'd
+            return;
+        }
+        const foundSet = this.GetFromRT(dep.find, dep);
+        if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
+            return;
+        }
+        foundTarget.inherited = foundSet.inherited;
+        foundTarget.properties = foundSet.properties;
+        //foundTarget.inner.kind = foundSet.inner.kind;
+        foundTarget.evaluated = true;
+        for(const dep of foundTarget.deps) {
+            this.HandleDependency(dep);
+        }
+        return;
+    }
+
     FindInScope(target, scope) {
         for(const vari of scope.vars) {
             if(vari.inner.label == target) {
@@ -58,14 +124,14 @@ class Operations {
         return null;
     }
 
-    FindInVariable(target, vari) {
-        for(const prop of vari.properties) {
+    FindInVariable(target, properties, inherited) {
+        for(const prop of properties) {
             if(prop.inner.label == target) {
                 return prop;
             }
         }
-        if(vari.inherited !== null) {
-            return this.FindInVariable(target, vari.inherited);
+        if(inherited !== null) {
+            return this.FindInVariable(target, inherited.properties, inherited.inherited);
         }
         return null;
     }
@@ -78,7 +144,7 @@ class Operations {
         let currentVar = firstFind;
         //console.log("found first");
         for(let i = 1; i < dep.path.length - 1; i++) {
-            const found = this.FindInVariable(dep.path[i], currentVar);
+            const found = this.FindInVariable(dep.path[i], currentVar.properties, currentVar.inherited);
             if(found === null) {
                 if(currentVar.propertydeps[dep.path[i]] === undefined) {
                     currentVar.propertydeps[dep.path[i]] = [];
@@ -88,7 +154,7 @@ class Operations {
             }
             currentVar = found;
         }
-        const lastFind = this.FindInVariable(dep.path[dep.path.length - 1], currentVar);
+        const lastFind = this.FindInVariable(dep.path[dep.path.length - 1], currentVar.properties, currentVar.inherited);
         if(lastFind !== null) {
             return;
         }
@@ -494,7 +560,7 @@ class Operations {
                 this.RequireSymbol("(");
                 this.ParseLi();
                 this.RequireSymbol(")");
-                return new ReturnType(CompletionItemKind.Variable, [], null, next.Val); // this way the object gets linked to the class it is derived from while still being treated like an object
+                return new ReturnType(CompletionItemKind.Variable, [], [], next.Val); // this way the object gets linked to the class it is derived from while still being treated like an object
             }
         } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN) {
             return new ReturnType(CompletionItemKind.Variable);
