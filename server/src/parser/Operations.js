@@ -71,8 +71,15 @@ class Operations {
         let currentVar = null;
         let ignoreFirst = false;
         if(rt.baseScope === null) { // if this is true then inherited will be null
-            currentVar = this.FindInScope(rt.raw[0], dep.reference);
-            ignoreFirst = true;
+            if(rt.raw.length == 0) {
+                //console.log("00")
+                currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", ""); // return a blank variable
+                currentVar.evaluated = true;
+                this.currentInt++;
+            } else {
+                currentVar = this.FindInScope(rt.raw[0], dep.reference);
+                ignoreFirst = true;
+            }
         } else {
             currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
@@ -86,6 +93,7 @@ class Operations {
             }
             currentVar = this.FindInVariable(rt.raw[i], currentVar.properties, currentVar.inherited);
         }
+        //console.log("returning");
         return currentVar; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
         //, a.b.c... -> c
     }
@@ -98,15 +106,22 @@ class Operations {
         if(foundTarget.evaluated) { // already eval'd
             return;
         }
+        //console.log("found target successfully");
         const foundSet = this.GetFromRT(dep.find, dep);
         if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
             return;
         }
+        //console.log("found set successfully");
         foundTarget.inherited = foundSet.inherited;
+        for(const prop of foundTarget.properties) {
+            foundSet.properties.push(prop); // transfer props manually to keep pointers to scope
+        }
         foundTarget.properties = foundSet.properties;
-        //foundTarget.inner.kind = foundSet.inner.kind;
+        foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
         foundTarget.evaluated = true;
+        //console.log("about to run deps");
         for(const dep of foundTarget.deps) {
+            //console.log("running dep");
             this.HandleDependency(dep);
         }
         return;
@@ -579,11 +594,11 @@ class Operations {
             }
             if(returned.Val == "{") {
                 const cs = this.ParseScope();
-                // const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
-                // this.currentInt++;
-                // _this.linkedscope = cs;
-                // _this.evaluated = true;
-                // cs.addVar(_this);
+                const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
+                this.currentInt++;
+                _this.properties = cs.vars;
+                _this.evaluated = true;
+                cs.addVar(_this);
                 this.RequireSymbol("}");
                 return new ReturnType(CompletionItemKind.Variable, [], cs.vars);
             }

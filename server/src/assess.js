@@ -5,6 +5,7 @@ const Reader = require('./parser/CountingReader.js');
 const Operations = require('./parser/Operations.js');
 const Variable = require('./parser/Variable.js');
 const Scope = require('./parser/Scope.js');
+const { isFunction } = require('util');
 const DiagnosticSeverity = server2.DiagnosticSeverity;
 /*
 changed = false: assessing either in progress or done, no further changes
@@ -25,12 +26,16 @@ const printInDetail = (any, numspaces) => {
         }
         returning += `${newindent}  ]${newindent}}`;
     } else if(any instanceof Variable) {
-        returning += `${newindent}Variable {`;
-        returning += `${newindent}  name: ${any.inner.label}, properties: [`;
-        for(const prop of any.properties) {
-            returning += printInDetail(prop, numspaces + 2);
+        if(any.inner.label == 'this') {
+            returning += `${newindent} -- this --`;
+        } else {
+            returning += `${newindent}Variable {`;
+            returning += `${newindent}  name: ${any.inner.label}, properties: [`;
+            for(const prop of any.properties) {
+                returning += printInDetail(prop, numspaces + 2);
+            }
+            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
         }
-        returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
     }
     return returning;
 }
