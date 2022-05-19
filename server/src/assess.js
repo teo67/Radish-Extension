@@ -36,6 +36,7 @@ const printInDetail = (any, numspaces) => {
             }
             returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
         }
+        
     }
     return returning;
 }

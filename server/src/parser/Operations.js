@@ -69,6 +69,7 @@ class Operations {
         }
         //console.log("" + rt.raw + rt.inherited + inherited);
         let currentVar = null;
+        let before = null;
         let ignoreFirst = false;
         if(rt.baseScope === null) { // if this is true then inherited will be null
             if(rt.raw.length == 0) {
@@ -91,15 +92,17 @@ class Operations {
             if(!this.CheckVar(currentVar, dep)) {
                 return null;
             }
+            before = currentVar;
             currentVar = this.FindInVariable(rt.raw[i], currentVar.properties, currentVar.inherited);
         }
         //console.log("returning");
-        return currentVar; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
+        return [before, currentVar]; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
         //, a.b.c... -> c
     }
 
     HandleDependency(dep) {
-        const foundTarget = this.GetFromRT(dep.target, dep);
+        const found = this.GetFromRT(dep.target, dep);
+        const foundTarget = found[1];
         if(foundTarget === null) { // no var or failed somewhere
             return;
         }
@@ -107,7 +110,7 @@ class Operations {
             return;
         }
         //console.log("found target successfully");
-        const foundSet = this.GetFromRT(dep.find, dep);
+        const foundSet = this.GetFromRT(dep.find, dep)[1];
         if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
             return;
         }
@@ -118,6 +121,19 @@ class Operations {
         }
         foundTarget.properties = foundSet.properties;
         foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
+        if(found[0] !== null) {
+            const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
+            this.currentInt++;
+            _this.evaluated = true;
+            _this.properties = found[0].properties;
+            _this.evaluated = found[0].evaluated;
+            foundSet.properties.push(_this); // TO-DO: change so that _this gets pushed to scope linked to dep.find (add property to returnType?)
+        }
+
+        if(dep.target.raw.length > 1) {
+            foundSet.properties.push()
+        }
+
         foundTarget.evaluated = true;
         //console.log("about to run deps");
         for(const dep of foundTarget.deps) {
@@ -230,7 +246,6 @@ class Operations {
         //Print(ran.Val);
         return ran;
     }
-
     ParseScope() { //returns scope
         // console.log("parsing scope");
         const saved = this.cs;
@@ -544,7 +559,7 @@ class Operations {
                     this.ParseLi(true);
                     this.RequireSymbol(")");
                     this.RequireSymbol("{");
-                    this.ParseScope();
+                    const _cs = this.ParseScope();
                     this.RequireSymbol("}");
                 });
                 return new ReturnType(CompletionItemKind.Function);
@@ -594,11 +609,6 @@ class Operations {
             }
             if(returned.Val == "{") {
                 const cs = this.ParseScope();
-                const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
-                this.currentInt++;
-                _this.properties = cs.vars;
-                _this.evaluated = true;
-                cs.addVar(_this);
                 this.RequireSymbol("}");
                 return new ReturnType(CompletionItemKind.Variable, [], cs.vars);
             }

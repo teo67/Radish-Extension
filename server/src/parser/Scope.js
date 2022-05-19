@@ -1,5 +1,5 @@
 class Scope {
-    constructor(_startline, _startchar, _enclosing = null) {
+    constructor(_startline, _startchar, _enclosing = null, _isthis = false) {
         this.startline = _startline;
         this.startchar = _startchar;
         this.endline = this.startline;
@@ -7,6 +7,7 @@ class Scope {
         this.vars = [];
         this.innerscopes = [];
         this.enclosing = _enclosing;
+        this.isthis = _isthis;
     }
     end(line, char) {
         this.endline = line;
