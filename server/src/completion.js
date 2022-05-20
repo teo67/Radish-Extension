@@ -20,6 +20,13 @@ const through = (scope, returning, position) => {
     }
     return;
 }
+const getRef = (position, doc) => {
+    let validLetters = "abcdefghijklmnopqrstuvwxyz";
+    validLetters += validLetters.toUpperCase();
+    validLetters += "_";
+    let currentPos = position.character;
+    let read = doc.getText()[]
+}
 module.exports = _textDocumentPosition => {
     // {
     //     textDocument: { uri: 'file:///Users/h205p3/Desktop/code/txt/test.txt' },
@@ -27,6 +34,7 @@ module.exports = _textDocumentPosition => {
     //     context: { triggerKind: 1 }
     //   }
     //console.log("started completion");
+    console.log(_textDocumentPosition.context);
     const stored = cached[_textDocumentPosition.textDocument.uri];
     if(stored === undefined) {
         return [];

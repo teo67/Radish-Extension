@@ -13,11 +13,13 @@ const TokenTypes = require('./TokenTypes.js');
 //     modifierMap[tokenModifiers[i]] = i;  
 // }
 class ReturnType {
-    constructor(_type, _raw = [], _baseScope = null, _inherited = null) {
+    constructor(_type, _raw = [], _baseScope = null, _inherited = null, _linkedscope = null, _thisref = null) {
         this.type = _type; // for example: CompletionItemKind.Variable
         this.raw = _raw; // array of string
         this.baseScope = _baseScope;
         this.inherited = _inherited;
+        this.linkedscope = _linkedscope;
+        this.thisref = _thisref;
     }
     static Reference = 525 // enum to return type variable
 }
@@ -44,6 +46,7 @@ class Operations {
         this.cs = null; // current scope
         this.dependencies = [];
         this.propertydependencies = [];
+        this.currentthis = null;
     }
 
     CheckVar(vari, dep) {
@@ -121,19 +124,21 @@ class Operations {
         }
         foundTarget.properties = foundSet.properties;
         foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
-        if(found[0] !== null) {
+        if(dep.find.linkedscope !== null && (found[0] !== null || dep.find.thisref !== null)) {
             const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
             _this.evaluated = true;
-            _this.properties = found[0].properties;
-            _this.evaluated = found[0].evaluated;
-            foundSet.properties.push(_this); // TO-DO: change so that _this gets pushed to scope linked to dep.find (add property to returnType?)
+            if(dep.find.thisref !== null) {
+                _this.properties = dep.find.thisref.properties;
+                _this.inherited = dep.find.thisref.inherited;
+            } else { // we know that found[0] !== null atp
+                _this.properties = found[0].properties;
+                _this.inherited = found[0].inherited;
+            }
+            
+            _this.evaluated = true;
+            dep.find.linkedscope.addVar(_this); // TO-DO: change so that _this gets pushed to scope linked to dep.find (add property to returnType?)
         }
-
-        if(dep.target.raw.length > 1) {
-            foundSet.properties.push()
-        }
-
         foundTarget.evaluated = true;
         //console.log("about to run deps");
         for(const dep of foundTarget.deps) {
@@ -246,11 +251,14 @@ class Operations {
         //Print(ran.Val);
         return ran;
     }
-    ParseScope() { //returns scope
+    ParseScope(setthis = false) { //returns scope
         // console.log("parsing scope");
         const saved = this.cs;
         const newscope = new Scope(this.Row, this.Col, this.cs);
         this.cs = newscope;
+        if(setthis) {
+            this.currentthis.properties = newscope.vars;
+        }
         let read = this.Read();
         while(read.Type != TokenTypes.ENDOFFILE && !(read.Type == TokenTypes.SYMBOL && read.Val == "}")) {
             if(read.Type == TokenTypes.OPERATOR && read.Val == "if") {
@@ -530,13 +538,19 @@ class Operations {
                             }
                             this.RequireSymbol("{");
                             if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
-                                this.ScopeWith(() => {
-                                    if(newType.Val == "plant" || newType.Val == "p") {
-                                        this.cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "", ""));
-                                        this.currentInt++;
-                                    }
-                                    this.ParseScope();
-                                });
+                                const _cs = this.ParseScope();
+                                if(newType.Val == "plant" || newType.Val == "p") {
+                                    _cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "", ""));
+                                    this.currentInt++;
+                                }
+                                if(this.currentthis !== null) {
+                                    const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
+                                    this.currentInt++;
+                                    _this.evaluated = true;
+                                    _this.properties = this.currentthis.properties;
+                                    _this.inherited = this.currentthis.inherited;
+                                    _cs.addVar(_this);
+                                }
                             } else {
                                 throw this.Error("Only plant and harvest functions are valid in this context!");
                             }
@@ -554,15 +568,16 @@ class Operations {
                 throw this.Error(`Expecting a variable name instead of ${next.Val}!`);
             }
             if(returned.Val == "tool" || returned.Val == "t") {
+                let _cs;
                 this.ScopeWith(() => {
                     this.RequireSymbol("(");
                     this.ParseLi(true);
                     this.RequireSymbol(")");
                     this.RequireSymbol("{");
-                    const _cs = this.ParseScope();
+                    _cs = this.ParseScope();
                     this.RequireSymbol("}");
                 });
-                return new ReturnType(CompletionItemKind.Function);
+                return new ReturnType(CompletionItemKind.Function, [], null, null, _cs, this.currentthis);
             }
             if(returned.Val == "null" || returned.Val == "all") {
                 return new ReturnType(CompletionItemKind.Variable);
@@ -608,8 +623,13 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "{") {
-                const cs = this.ParseScope();
+                const prevthis = this.currentthis;
+                this.currentthis = {
+                    inherited: null
+                };
+                const cs = this.ParseScope(true);
                 this.RequireSymbol("}");
+                this.currentthis = prevthis;
                 return new ReturnType(CompletionItemKind.Variable, [], cs.vars);
             }
         }

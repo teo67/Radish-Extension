@@ -15,7 +15,7 @@ const printInDetail = (any, numspaces) => {
     let returning = '';
     const newindent = `\n${' '.repeat(numspaces)}`;
     if(any instanceof Scope) {
-        returning += `${newindent}Scope {`;
+        returning += `${newindent}Scope(start(${any.startline}, ${any.startchar}), end(${any.endline}, ${any.endchar})) {`;
         returning += `${newindent}  vars: [`;
         for(const vari of any.vars) {
             returning += printInDetail(vari, numspaces + 4);
@@ -26,16 +26,16 @@ const printInDetail = (any, numspaces) => {
         }
         returning += `${newindent}  ]${newindent}}`;
     } else if(any instanceof Variable) {
-        if(any.inner.label == 'this') {
-            returning += `${newindent} -- this --`;
-        } else {
+        // if(any.inner.label == 'this') {
+        //     returning += `${newindent} -- this --`;
+        // } else {
             returning += `${newindent}Variable {`;
             returning += `${newindent}  name: ${any.inner.label}, properties: [`;
             for(const prop of any.properties) {
                 returning += printInDetail(prop, numspaces + 2);
             }
             returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
-        }
+        //}
         
     }
     return returning;
