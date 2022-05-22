@@ -1,17 +1,18 @@
 const RadishException = require('./RadishException.js');
 class CountingReader {
     static Path = "";
-    constructor(file) {
-        this.row = 1;
-        this.col = 1;
+    constructor(file, startrow = 1, startcol = 1) {
+        this.row = startrow;
+        this.col = startcol;
         this.index = 0;
         this.file = file;
     }
     get EndOfStream() {
-        return this.index >= this.file.getText().length;
+        return this.index >= this.file._content.length;
     }
     Peek() {
-        return this.file.getText()[this.index];
+        //console.log(this.file._content);
+        return this.file._content[this.index];
     }
     Read() {
         const returning = this.Peek();

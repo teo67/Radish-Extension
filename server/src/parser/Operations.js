@@ -105,15 +105,19 @@ class Operations {
 
     HandleDependency(dep) {
         const found = this.GetFromRT(dep.target, dep);
-        const foundTarget = found[1];
-        if(foundTarget === null) { // no var or failed somewhere
+        if(found === null) { // no var or failed somewhere
             return;
         }
+        const foundTarget = found[1];
         if(foundTarget.evaluated) { // already eval'd
             return;
         }
         //console.log("found target successfully");
-        const foundSet = this.GetFromRT(dep.find, dep)[1];
+        let foundSet = this.GetFromRT(dep.find, dep);
+        if(foundSet === null) {
+            return;
+        }
+        foundSet = foundSet[1];
         if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
             return;
         }
@@ -583,7 +587,7 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "throw" || returned.Val == "pass" || returned.Val == "import") {
-                ParseExpression();
+                this.ParseExpression();
                 return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "class") {

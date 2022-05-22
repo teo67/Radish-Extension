@@ -41,6 +41,14 @@ const printInDetail = (any, numspaces) => {
     return returning;
 }
 const assess = async (document, connection) => {
+    if(cached[document.uri] === undefined) {
+        cached[document.uri] = {
+            cs: [], 
+            stamp: -1,
+            chain: '',
+            ref: document
+        };
+    }
     //console.log("starting");
     const version = document.version;
     await new Promise((resolve, reject) => setTimeout(resolve, 1000));
@@ -52,12 +60,7 @@ const assess = async (document, connection) => {
         return;
     }
     //console.log("running " + document.getText());
-    if(cached[document.uri] === undefined) {
-        cached[document.uri] = {
-            cs: [], 
-            stamp: -1
-        };
-    }
+    
     const ops = new Operations(new Reader(document));
     try {
         ops.ParseScope();
@@ -68,7 +71,7 @@ const assess = async (document, connection) => {
         for(const dep of ops.dependencies) {
             ops.HandleDependency(dep);
         }
-        console.log(printInDetail(ops.cs, 0));
+        //console.log(printInDetail(ops.cs, 0));
         //console.log(ops.propertydependencies);
         //console.log(ops.dependencies);
         //console.log(ops.cs);

@@ -4,7 +4,6 @@ const completion = require('./completion.js');
 const { documents, connection, documentSettings, languageserver, capabilities, tokenTypes, tokenModifiers } = require('./global.js');
 const validate = require('./validate.js');
 const assess = require('./assess.js');
-
 connection.onInitialize((params) => {
     const _capabilities = params.capabilities;
     capabilities.configuration = !!(_capabilities.workspace && !!_capabilities.workspace.configuration);
@@ -12,6 +11,7 @@ connection.onInitialize((params) => {
     capabilities.diagnostics = !!(_capabilities.textDocument &&
         _capabilities.textDocument.publishDiagnostics &&
         _capabilities.textDocument.publishDiagnostics.relatedInformation);
+    
     const result = {
         capabilities: {
             textDocumentSync: languageserver.TextDocumentSyncKind.Incremental,
