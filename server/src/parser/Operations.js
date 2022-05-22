@@ -60,15 +60,26 @@ class Operations {
         return true;
     }
 
+    GetInherited(str, scoperef, dep) {
+        let inherited = this.FindInScope(str, scoperef);
+        if(!this.CheckVar(inherited, dep)) {
+            return null;
+        }
+        inherited = this.FindInVariable("prototype", inherited.properties, null);
+        //console.log(inherited);
+        if(!this.CheckVar(inherited, dep)) {
+            return null;
+        }
+        return inherited;
+    }
+
     GetFromRT(rt, dep) { // false = cancel
         let inherited = null;
         if(rt.inherited !== null) {
-            //console.log("finding inherited " + rt.inherited);
-            inherited = this.FindInScope(rt.inherited, dep.reference);
-            if(!this.CheckVar(inherited, dep)) {
+            inherited = this.GetInherited(rt.inherited, dep.reference, dep);
+            if(inherited === null) {
                 return null;
             }
-            //console.log("found inherited");
         }
         //console.log("" + rt.raw + rt.inherited + inherited);
         let currentVar = null;
@@ -121,6 +132,26 @@ class Operations {
         if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
             return;
         }
+        if(dep.find.type == CompletionItemKind.Class) {
+            const construct = this.FindInVariable("constructor", foundSet.properties, null);
+            const saved = foundSet; 
+            if(construct === null) {
+                foundSet = new Variable("constructor", CompletionItemKind.Function, this.currentInt, "", "");
+                foundSet.evaluated = true;  
+                this.currentInt++;
+            } else {
+                foundSet = construct;
+            }
+            let proto = this.FindInVariable("prototype", foundSet.properties, foundSet.inherited);
+            if(proto === null) {
+                proto = new Variable("prototype", CompletionItemKind.Variable, this.currentInt, "", "");
+                proto.evaluated = true;
+                foundSet.properties.push(proto);
+                this.currentInt++;
+            }
+            proto.properties = saved.properties;
+            proto.inherited = saved.inherited;
+        }
         //console.log("found set successfully");
         foundTarget.inherited = foundSet.inherited;
         for(const prop of foundTarget.properties) {
@@ -129,17 +160,39 @@ class Operations {
         foundTarget.properties = foundSet.properties;
         foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
         if(dep.find.linkedscope !== null && (found[0] !== null || dep.find.thisref !== null)) {
+            let _super = null;
             const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
             _this.evaluated = true;
             if(dep.find.thisref !== null) {
                 _this.properties = dep.find.thisref.properties;
-                _this.inherited = dep.find.thisref.inherited;
+                let inh = null;
+                if(dep.find.thisref.inherited !== null) {
+                    inh = this.GetInherited(dep.find.thisref.inherited, dep.reference, dep);
+                    if(inh === null) {
+                        return;
+                    }
+                    _super = this.FindInVariable("constructor", inh.properties, inh.inherited);
+                }
+                _this.inherited = inh;
             } else { // we know that found[0] !== null atp
                 _this.properties = found[0].properties;
                 _this.inherited = found[0].inherited;
+                if(found[0].inherited !== null) {
+                    _super = this.FindInVariable("constructor", found[0].inherited.properties, found[0].inherited.inherited);
+                }
             }
-            
+            if(foundTarget.inner.label == "constructor" && _super !== null) {
+                if(!this.CheckVar(_super, dep)) {
+                    return;
+                }
+                const realSuper = new Variable("super", CompletionItemKind.Function, this.currentInt, "", "");
+                this.currentInt++;
+                realSuper.evaluated = true;
+                realSuper.properties = _super.properties;
+                realSuper.inherited = _super.inherited;
+                dep.find.linkedscope.addVar(realSuper);
+            }
             _this.evaluated = true;
             dep.find.linkedscope.addVar(_this); // TO-DO: change so that _this gets pushed to scope linked to dep.find (add property to returnType?)
         }
@@ -165,12 +218,14 @@ class Operations {
     }
 
     FindInVariable(target, properties, inherited) {
+        //console.log("finding " + target);
         for(const prop of properties) {
             if(prop.inner.label == target) {
                 return prop;
             }
         }
         if(inherited !== null) {
+            //console.log(inherited.inner.label + "\n" + inherited.properties + "\n" + inherited.inherited)
             return this.FindInVariable(target, inherited.properties, inherited.inherited);
         }
         return null;
@@ -599,9 +654,15 @@ class Operations {
                 } else {
                     this.Stored = next;
                 }
+                
                 this.RequireSymbol("{");
-                const cs = this.ParseScope();
+                const prevthis = this.currentthis;
+                this.currentthis = {
+                    inherited: inherited
+                };
+                const cs = this.ParseScope(true);
                 this.RequireSymbol("}");
+                this.currentthis = prevthis;
                 return new ReturnType(CompletionItemKind.Class, [], cs.vars, inherited);
             }
             if(returned.Val == "new") {

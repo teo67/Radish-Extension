@@ -1,0 +1,11 @@
+dig A plant class {
+   
+    dig constructor plant tool() {
+        holler("aa")
+    }
+    dig b plant tool() {
+        holler("hello")
+    }
+}
+dig a plant new A()
+a.constructor()

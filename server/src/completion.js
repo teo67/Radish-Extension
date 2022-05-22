@@ -74,7 +74,7 @@ module.exports = _textDocumentPosition => {
     for(let i = returned.length - 1; i > 0; i--) {
         if(returned[i] == '') { // some kind of error
             current = [];
-            inherited = null;
+            currentinherited = null;
             break;
         }
         if(i == returned.length - 1 && returned[i].startsWith('}')) {
@@ -88,7 +88,7 @@ module.exports = _textDocumentPosition => {
             if(found === null) { // couldn't find var
                 //console.log("none");
                 current = [];
-                inherited = null;
+                currentinherited = null;
                 break;
             }
             current = found.properties;
