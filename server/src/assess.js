@@ -43,7 +43,7 @@ const printInDetail = (any, numspaces) => {
 const assess = async (document, connection) => {
     if(cached[document.uri] === undefined) {
         cached[document.uri] = {
-            cs: [], 
+            cs: null, 
             stamp: -1,
             chain: '',
             ref: document

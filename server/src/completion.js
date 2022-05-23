@@ -67,6 +67,7 @@ module.exports = _textDocumentPosition => {
     //console.log(cs.vars);
     const returned = getobj(stored.ref, _textDocumentPosition.position);
     //console.log(returned);
+    //console.log(cs);
     const allvars = through(cs, _textDocumentPosition.position);
     //console.log(allvars);
     let current = allvars;
