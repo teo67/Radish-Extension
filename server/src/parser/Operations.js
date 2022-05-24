@@ -420,10 +420,11 @@ class Operations {
 
     ParseLi(params = false) { 
         let returning = [];
+        let returningString = [];
         let read = this.Read();
         if(read.Type == TokenTypes.SYMBOL && (read.Val == "]" || read.Val == ")")) { // empty list
             this.Stored = read;
-            return returning;
+            return [returning, returningString];
         }
         while(true) { 
             this.Stored = read;
@@ -433,12 +434,17 @@ class Operations {
                     throw this.Error("Expecting a function parameter!");
                 }
                 const next = this.Read();
+                let isOptional = false;
                 if(next.Val == "plant" || next.Val == "p") {
                     this.ParseExpression();
+                    isOptional = true;
                 } else {
                     this.Stored = next;
                 }
-                returning.push(new Variable(key.Val, CompletionItemKind.Variable, this.currentInt, "", ""));
+                const newvar = new Variable(key.Val, CompletionItemKind.Variable, this.currentInt, "", "");
+                newvar.inner.detail = isOptional ? "[optional parameter]" : "[parameter]";
+                returning.push(newvar);
+                returningString.push(isOptional ? (key.Val + "?") : key.Val);
                 this.currentInt++;
             } else {
                 this.ParseExpression();
@@ -453,7 +459,7 @@ class Operations {
 
             read = this.Read();
         }
-        return returning;
+        return [returning, returningString];
     }
 
     Parse(lowerfunction, cases, extracheck = null) { 
@@ -626,7 +632,9 @@ class Operations {
                         this.Stored = afterNext;
                     }
                     // console.log("adding var");
-                    this.cs.addVar(new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", ""));
+                    const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", "");
+                    newvar.inner.detail = "[variable (initially undefined)]";
+                    this.cs.addVar(newvar);
                     this.currentInt++;
                     return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
                 }
@@ -635,28 +643,29 @@ class Operations {
             if(returned.Val == "tool" || returned.Val == "t") {
                 this.RequireSymbol("(");
                 const params = this.ParseLi(true);
+                //console.log(params);
                 this.RequireSymbol(")");
                 this.RequireSymbol("{");
                 const _cs = this.ParseScope();
                 this.RequireSymbol("}");
                 let desc = "[tool] { ";
-                for(let i = 0; i < params.length; i++) {
-                    desc += params[i].inner.label;
-                    if(i < params.length - 1) {
+                for(let i = 0; i < params[1].length; i++) {
+                    desc += params[1][i];
+                    if(i < params[1].length - 1) {
                         desc += ", ";
                     }
                 }
                 desc += " }";
-                _cs.vars = _cs.vars.concat(params);
+                _cs.vars = _cs.vars.concat(params[0]);
                 
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs, this.currentthis);
             }
             if(returned.Val == "null" || returned.Val == "all") {
-                return new ReturnType(CompletionItemKind.Variable);
+                return new ReturnType(CompletionItemKind.Variable, `initial value: ${returned.Val}`);
             }
-            if(returned.Val == "throw" || returned.Val == "pass" || returned.Val == "import") {
+            if(returned.Val == "throw" || returned.Val == "import") {
                 this.ParseExpression();
-                return new ReturnType(CompletionItemKind.Variable);
+                return new ReturnType(CompletionItemKind.Variable, `[${returned.Val}]`);
             }
             if(returned.Val == "class") {
                 const next = this.Read();
@@ -683,10 +692,10 @@ class Operations {
                 this.RequireSymbol("(");
                 this.ParseLi();
                 this.RequireSymbol(")");
-                return new ReturnType(CompletionItemKind.Variable, "", [], [], next.Val); // this way the object gets linked to the class it is derived from while still being treated like an object
+                return new ReturnType(CompletionItemKind.Variable, `[object : ${next.Val}]`, [], [], next.Val); // this way the object gets linked to the class it is derived from while still being treated like an object
             }
         } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN) {
-            return new ReturnType(CompletionItemKind.Variable);
+            return new ReturnType(CompletionItemKind.Variable, ["[string]", "[number]", "[boolean]"][[TokenTypes.STRING, TokenTypes.NUMBER, TokenTypes.BOOLEAN].indexOf(returned.Type)]);
         } else if(returned.Type == TokenTypes.KEYWORD) {
             return new ReturnType(ReturnType.Reference, "", [ returned.Val ]);
         } else if(returned.Type == TokenTypes.SYMBOL) {
@@ -698,7 +707,7 @@ class Operations {
             if(returned.Val == "[") {
                 this.ParseLi();
                 this.RequireSymbol("]");
-                return new ReturnType(CompletionItemKind.Variable);
+                return new ReturnType(CompletionItemKind.Variable, "[array]");
             }
             if(returned.Val == "{") {
                 const prevthis = this.currentthis;

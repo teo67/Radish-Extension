@@ -26,16 +26,16 @@ const printInDetail = (any, numspaces) => {
         }
         returning += `${newindent}  ]${newindent}}`;
     } else if(any instanceof Variable) {
-        // if(any.inner.label == 'this') {
-        //     returning += `${newindent} -- this --`;
-        // } else {
+        if(any.inner.label == 'prototype') {
+             returning += `${newindent} -- prototype --`;
+        } else {
             returning += `${newindent}Variable {`;
             returning += `${newindent}  name: ${any.inner.label}, properties: [`;
             for(const prop of any.properties) {
                 returning += printInDetail(prop, numspaces + 2);
             }
             returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
-        //}
+        }
         
     }
     return returning;
@@ -66,9 +66,11 @@ const assess = async (document, connection) => {
         ops.ParseScope();
         cached[document.uri].cs = ops.cs;
         for(const propdep of ops.propertydependencies) {
+            //console.log("prop");
             ops.HandlePropertyDependency(propdep);
         }
         for(const dep of ops.dependencies) {
+            //console.log("dep");
             ops.HandleDependency(dep);
         }
         //console.log(printInDetail(ops.cs, 0));

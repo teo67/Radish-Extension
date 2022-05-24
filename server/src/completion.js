@@ -82,7 +82,14 @@ module.exports = _textDocumentPosition => {
             current = through(cs, {
                 line: _textDocumentPosition.position.line, 
                 character: returned[i].substring(1)
-            }, false).vars;
+            }, false);
+            if(!(current.endline - 1 == _textDocumentPosition.position.line && current.endchar - 1 == returned[i].substring(1))) {
+                //console.log("error finding: " + returned[i].substring(1) + " / " + (current.endchar - 1));
+                current = [];
+                currentinherited = null;
+                break;
+            }
+            current = current.vars;
             currentinherited = null;
         } else {
             const found = findInVar(current, currentinherited, returned[i]);
