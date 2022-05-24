@@ -50,8 +50,15 @@ class Operations {
         this.currentthis = null;
     }
 
-    CheckVar(vari, dep) {
+    CheckVar(vari, dep, type = null, scope = null) {
         if(vari === null) {
+            if(type !== null && scope !== null) {
+                if(type == "this") {
+                    scope.thisdeps.push(dep); // this and super are special in-scope keywords that must be handled differently
+                } else if(type == "super") {
+                    scope.superdeps.push(dep);
+                }
+            }
             return false;
         }
         if(!vari.evaluated) {
@@ -87,17 +94,21 @@ class Operations {
         let before = null;
         let ignoreFirst = false;
         if(rt.baseScope === null) { // if this is true then inherited will be null
+            console.log("no base")
             if(rt.raw.length == 0) {
+                console.log("no raw")
                 //console.log("00")
                 currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", ""); // return a blank variable
                 currentVar.evaluated = true;
                 currentVar.inner.detail = rt.detail;
                 this.currentInt++;
             } else {
+                console.log("raw exists")
                 currentVar = this.FindInScope(rt.raw[0], dep.reference);
                 ignoreFirst = true;
             }
         } else {
+            console.log("base exists")
             currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
             currentVar.properties = rt.baseScope;
@@ -106,7 +117,11 @@ class Operations {
             currentVar.evaluated = true;
         }
         for(let i = (ignoreFirst ? 1 : 0); i < rt.raw.length; i++) {
-            if(!this.CheckVar(currentVar, dep)) {
+            if(i == 1 && ignoreFirst && (rt.raw[0] == "this" || rt.raw[0] == "super")) {
+                if(!this.CheckVar(currentVar, dep, rt.raw[0], dep.reference)) {
+                    return null;
+                }
+            } else if(!this.CheckVar(currentVar, dep)) {
                 return null;
             }
             before = currentVar;
@@ -118,21 +133,26 @@ class Operations {
     }
 
     HandleDependency(dep) {
+        console.log(`dep ${dep.target.raw}, ${dep.find.raw}`)
         const found = this.GetFromRT(dep.target, dep);
         if(found === null) { // no var or failed somewhere
+            console.log("not found")
             return;
         }
         const foundTarget = found[1];
         if(foundTarget.evaluated) { // already eval'd
+            console.log("already evaluated")
             return;
         }
         //console.log("found target successfully");
         let foundSet = this.GetFromRT(dep.find, dep);
         if(foundSet === null) {
+            console.log("no set");
             return;
         }
         foundSet = foundSet[1];
         if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
+            console.log("set already eval'd");
             return;
         }
         if(dep.find.type == CompletionItemKind.Class) {
@@ -149,6 +169,7 @@ class Operations {
             let proto = this.FindInVariable("prototype", foundSet.properties, foundSet.inherited);
             if(proto === null) {
                 proto = new Variable("prototype", CompletionItemKind.Variable, this.currentInt, "", "");
+                proto.inner.detail = "[prototype object]";
                 proto.evaluated = true;
                 foundSet.properties.push(proto);
                 this.currentInt++;
@@ -162,13 +183,16 @@ class Operations {
             foundSet.properties.push(prop); // transfer props manually to keep pointers to scope
         }
         foundTarget.properties = foundSet.properties;
+        console.log(`${foundTarget.inner.detail} -> ${foundSet.inner.detail}`)
         foundTarget.inner.detail = foundSet.inner.detail;
+        
         foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
         if(dep.find.linkedscope !== null && (found[0] !== null || dep.find.thisref !== null)) {
             let _super = null;
             const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
             _this.evaluated = true;
+            _this.inner.detail = "[object reference]";
             if(dep.find.thisref !== null) {
                 _this.properties = dep.find.thisref.properties;
                 let inh = null;
@@ -196,10 +220,17 @@ class Operations {
                 realSuper.evaluated = true;
                 realSuper.properties = _super.properties;
                 realSuper.inherited = _super.inherited;
+                realSuper.inner.detail = "[inherited constructor]";
                 dep.find.linkedscope.addVar(realSuper);
+                for(const _dep of dep.find.linkedscope.superdeps) {
+                    this.HandleDependency(_dep);
+                }
             }
             _this.evaluated = true;
             dep.find.linkedscope.addVar(_this); // TO-DO: change so that _this gets pushed to scope linked to dep.find (add property to returnType?)
+            for(const _dep of dep.find.linkedscope.thisdeps) {
+                this.HandleDependency(_dep);
+            }
         }
         foundTarget.evaluated = true;
         //console.log("about to run deps");
@@ -595,7 +626,8 @@ class Operations {
                 while(next.Type == TokenTypes.OPERATOR && (next.Val == "public" || next.Val == "private" || next.Val == "protected" || next.Val == "static")) {
                     next = this.Read();
                 }
-                if(next.Type == TokenTypes.KEYWORD && next.Val != "this") { // can't declare a variable named "this"
+                if(next.Type == TokenTypes.KEYWORD && next.Val != "this" && next.Val != "super") { // can't declare a variable named "this"
+                    let desc = "variable"
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
                         for(let i = 0; i < 2; i++) {
@@ -609,6 +641,7 @@ class Operations {
                             }
                             this.RequireSymbol("{");
                             if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
+                                desc += ` | ${newType.Val} {}`;
                                 const _cs = this.ParseScope();
                                 if(newType.Val == "plant" || newType.Val == "p") {
                                     _cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "", ""));
@@ -620,6 +653,7 @@ class Operations {
                                     _this.evaluated = true;
                                     _this.properties = this.currentthis.properties;
                                     _this.inherited = this.currentthis.inherited;
+                                    _this.inner.detail = "[object reference]";
                                     _cs.addVar(_this);
                                 }
                             } else {
@@ -633,7 +667,7 @@ class Operations {
                     }
                     // console.log("adding var");
                     const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", "");
-                    newvar.inner.detail = "[variable (initially undefined)]";
+                    newvar.inner.detail = "[" + desc + "]";
                     this.cs.addVar(newvar);
                     this.currentInt++;
                     return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);

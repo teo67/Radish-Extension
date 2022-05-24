@@ -73,7 +73,7 @@ const assess = async (document, connection) => {
             //console.log("dep");
             ops.HandleDependency(dep);
         }
-        //console.log(printInDetail(ops.cs, 0));
+        console.log(printInDetail(ops.cs, 0));
         //console.log(ops.propertydependencies);
         //console.log(ops.dependencies);
         //console.log(ops.cs);
