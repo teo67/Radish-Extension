@@ -10,6 +10,7 @@ class Scope {
         this.isthis = _isthis;
         this.thisdeps = [];
         this.superdeps = [];
+        this.params = []; // only for functions (array of strings), used for semantic tokenizing/highlighting
     }
     end(line, char) {
         this.endline = line;

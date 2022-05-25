@@ -25,10 +25,19 @@ class ReturnType {
     static Reference = 525 // enum to return type variable
 }
 class Dependency {
-    constructor(_target, _reference, _find) {
+    constructor(_target, _reference, _find) { // null for a token dep
         this.target = _target; // rt
         this.reference = _reference; // reference scope to begin search
         this.find = _find; // rt
+    }
+}
+class TokenDependency {
+    constructor(_raw, _reference, _line, _startchar, _baseScope = null) {
+        this.raw = _raw;
+        this.reference = _reference;
+        this.line = _line;
+        this.startchar = _startchar;
+        this.baseScope = _baseScope;
     }
 }
 class PropertyDependency {
@@ -48,11 +57,12 @@ class Operations {
         this.dependencies = [];
         this.propertydependencies = [];
         this.currentthis = null;
+        this.tokendependencies = []; // [tokendependency]
     }
 
     CheckVar(vari, dep, type = null, scope = null) {
         if(vari === null) {
-            if(type !== null && scope !== null) {
+            if(type !== null && scope !== null && dep !== null) {
                 if(type == "this") {
                     scope.thisdeps.push(dep); // this and super are special in-scope keywords that must be handled differently
                 } else if(type == "super") {
@@ -62,7 +72,9 @@ class Operations {
             return false;
         }
         if(!vari.evaluated) {
-            vari.deps.push(dep);
+            if(dep !== null) {
+                vari.deps.push(dep);
+            }
             return false;
         }
         return true;
@@ -81,51 +93,55 @@ class Operations {
         return inherited;
     }
 
-    GetFromRT(rt, dep) { // false = cancel
-        let inherited = null;
-        if(rt.inherited !== null) {
-            inherited = this.GetInherited(rt.inherited, dep.reference, dep);
-            if(inherited === null) {
+    PassInRT(dep, rt) {
+        return this.GetFromRT(dep, rt.reference, rt.raw, rt.baseScope, rt.inherited, rt.detail);
+    }
+
+    GetFromRT(dep, ref, raw, baseScope, inherited = null, detail = "") { // false = cancel
+        let _inherited = null;
+        if(inherited !== null) {
+            _inherited = this.GetInherited(inherited, ref, dep);
+            if(_inherited === null) {
                 return null;
             }
         }
-        //console.log("" + rt.raw + rt.inherited + inherited);
+        //console.log("" + raw + inherited + inherited);
         let currentVar = null;
         let before = null;
         let ignoreFirst = false;
-        if(rt.baseScope === null) { // if this is true then inherited will be null
-            console.log("no base")
-            if(rt.raw.length == 0) {
-                console.log("no raw")
+        if(baseScope === null) { // if this is true then inherited will be null
+            //console.log("no base")
+            if(raw.length == 0) {
+                //console.log("no raw")
                 //console.log("00")
                 currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", ""); // return a blank variable
                 currentVar.evaluated = true;
-                currentVar.inner.detail = rt.detail;
+                currentVar.inner.detail = detail;
                 this.currentInt++;
             } else {
-                console.log("raw exists")
-                currentVar = this.FindInScope(rt.raw[0], dep.reference);
+                //console.log("raw exists")
+                currentVar = this.FindInScope(raw[0], ref);
                 ignoreFirst = true;
             }
         } else {
-            console.log("base exists")
+            //console.log("base exists")
             currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
-            currentVar.properties = rt.baseScope;
-            currentVar.inherited = inherited;
-            currentVar.inner.detail = rt.detail;
+            currentVar.properties = baseScope;
+            currentVar.inherited = _inherited;
+            currentVar.inner.detail = detail;
             currentVar.evaluated = true;
         }
-        for(let i = (ignoreFirst ? 1 : 0); i < rt.raw.length; i++) {
-            if(i == 1 && ignoreFirst && (rt.raw[0] == "this" || rt.raw[0] == "super")) {
-                if(!this.CheckVar(currentVar, dep, rt.raw[0], dep.reference)) {
+        for(let i = (ignoreFirst ? 1 : 0); i < raw.length; i++) {
+            if(i == 1 && ignoreFirst && (raw[0] == "this" || raw[0] == "super")) {
+                if(!this.CheckVar(currentVar, dep, raw[0], ref)) {
                     return null;
                 }
             } else if(!this.CheckVar(currentVar, dep)) {
                 return null;
             }
             before = currentVar;
-            currentVar = this.FindInVariable(rt.raw[i], currentVar.properties, currentVar.inherited);
+            currentVar = this.FindInVariable(raw[i], currentVar.properties, currentVar.inherited);
         }
         //console.log("returning");
         return [before, currentVar]; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
@@ -134,7 +150,7 @@ class Operations {
 
     HandleDependency(dep) {
         console.log(`dep ${dep.target.raw}, ${dep.find.raw}`)
-        const found = this.GetFromRT(dep.target, dep);
+        const found = this.PassInRT(dep, dep.target);
         if(found === null) { // no var or failed somewhere
             console.log("not found")
             return;
@@ -145,7 +161,7 @@ class Operations {
             return;
         }
         //console.log("found target successfully");
-        let foundSet = this.GetFromRT(dep.find, dep);
+        let foundSet = this.PassInRT(dep, dep.find);
         if(foundSet === null) {
             console.log("no set");
             return;
@@ -607,6 +623,7 @@ class Operations {
         while(check()) {
             next = this.Read();
         }
+        // here, we add to dependencies, so long as returning.length > 0
         if(isUnknown) {
             return new ReturnType(CompletionItemKind.Variable);
         }
@@ -623,6 +640,7 @@ class Operations {
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "dig" || returned.Val == "d") {
                 let next = this.Read();
+                
                 while(next.Type == TokenTypes.OPERATOR && (next.Val == "public" || next.Val == "private" || next.Val == "protected" || next.Val == "static")) {
                     next = this.Read();
                 }
@@ -666,6 +684,7 @@ class Operations {
                         this.Stored = afterNext;
                     }
                     // console.log("adding var");
+                    
                     const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", "");
                     newvar.inner.detail = "[" + desc + "]";
                     this.cs.addVar(newvar);
@@ -691,7 +710,7 @@ class Operations {
                 }
                 desc += " }";
                 _cs.vars = _cs.vars.concat(params[0]);
-                
+                _cs.params = params[1];
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs, this.currentthis);
             }
             if(returned.Val == "null" || returned.Val == "all") {
