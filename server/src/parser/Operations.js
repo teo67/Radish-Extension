@@ -60,14 +60,14 @@ class Operations {
         this.tokendependencies = []; // [tokendependency]
     }
 
+    HandleTokenDependency(dep) {
+
+    }
+
     CheckVar(vari, dep, type = null, scope = null) {
         if(vari === null) {
             if(type !== null && scope !== null && dep !== null) {
-                if(type == "this") {
-                    scope.thisdeps.push(dep); // this and super are special in-scope keywords that must be handled differently
-                } else if(type == "super") {
-                    scope.superdeps.push(dep);
-                }
+                scope.addToDeps(type, dep);
             }
             return false;
         }
@@ -94,7 +94,7 @@ class Operations {
     }
 
     PassInRT(dep, rt) {
-        return this.GetFromRT(dep, rt.reference, rt.raw, rt.baseScope, rt.inherited, rt.detail);
+        return this.GetFromRT(dep, dep.reference, rt.raw, rt.baseScope, rt.inherited, rt.detail);
     }
 
     GetFromRT(dep, ref, raw, baseScope, inherited = null, detail = "") { // false = cancel
@@ -107,7 +107,7 @@ class Operations {
         }
         //console.log("" + raw + inherited + inherited);
         let currentVar = null;
-        let before = null;
+        let before = [];
         let ignoreFirst = false;
         if(baseScope === null) { // if this is true then inherited will be null
             //console.log("no base")
@@ -140,22 +140,31 @@ class Operations {
             } else if(!this.CheckVar(currentVar, dep)) {
                 return null;
             }
-            before = currentVar;
+            before.push(currentVar);
             currentVar = this.FindInVariable(raw[i], currentVar.properties, currentVar.inherited);
         }
+        if(currentVar === null) {
+            return null;
+        }
+        before.push(currentVar);
+        console.log("before = " + before[0].evaluated);
         //console.log("returning");
-        return [before, currentVar]; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
+        return before; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
         //, a.b.c... -> c
     }
 
     HandleDependency(dep) {
         console.log(`dep ${dep.target.raw}, ${dep.find.raw}`)
         const found = this.PassInRT(dep, dep.target);
+        
         if(found === null) { // no var or failed somewhere
             console.log("not found")
             return;
         }
-        const foundTarget = found[1];
+        console.log("found = " + found[0].evaluated);
+        console.log("length = " + found.length);
+        console.log("foundtarget = " + found[found.length - 1]);
+        const foundTarget = found[found.length - 1];
         if(foundTarget.evaluated) { // already eval'd
             console.log("already evaluated")
             return;
@@ -166,7 +175,7 @@ class Operations {
             console.log("no set");
             return;
         }
-        foundSet = foundSet[1];
+        foundSet = foundSet[foundSet.length - 1];
         if(!this.CheckVar(foundSet, dep)) { // if null or not eval'd, etc
             console.log("set already eval'd");
             return;
@@ -203,7 +212,7 @@ class Operations {
         foundTarget.inner.detail = foundSet.inner.detail;
         
         foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
-        if(dep.find.linkedscope !== null && (found[0] !== null || dep.find.thisref !== null)) {
+        if(dep.find.linkedscope !== null && (found.length > 1 || dep.find.thisref !== null)) {
             let _super = null;
             const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
             this.currentInt++;
@@ -221,10 +230,10 @@ class Operations {
                 }
                 _this.inherited = inh;
             } else { // we know that found[0] !== null atp
-                _this.properties = found[0].properties;
-                _this.inherited = found[0].inherited;
-                if(found[0].inherited !== null) {
-                    _super = this.FindInVariable("constructor", found[0].inherited.properties, found[0].inherited.inherited);
+                _this.properties = found[found.length - 2].properties;
+                _this.inherited = found[found.length - 2].inherited;
+                if(found[found.length - 2].inherited !== null) {
+                    _super = this.FindInVariable("constructor", found[found.length - 2].inherited.properties, found[found.length - 2].inherited.inherited);
                 }
             }
             if(foundTarget.inner.label == "constructor" && _super !== null) {
@@ -268,6 +277,23 @@ class Operations {
         }
         return null;
     }
+//     /Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:163
+//     if(foundTarget.evaluated) { // already eval'd
+//                    ^
+
+// TypeError: Cannot read properties of null (reading 'evaluated')
+// at Operations.HandleDependency (/Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:163:24)
+// at Operations.HandleDependency (/Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:252:22)
+// at assess (/Users/h205p3/Desktop/code/Radish-Extension/server/src/assess.js:74:17)
+//     /Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:265
+//         for(const vari of scope.vars) {
+//                                 ^
+
+// TypeError: Cannot read properties of undefined (reading 'vars')
+//     at Operations.FindInScope (/Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:265:33)
+//     at Operations.GetFromRT (/Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:127:35)
+//     at Operations.PassInRT (/Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:101:21)
+//     at Operations.HandleDependency (/Users/h205p3/Desktop/code/Radish-Extension/server/src/parser/Operations.js:157:28)
 
     FindInVariable(target, properties, inherited) {
         //console.log("finding " + target);
@@ -588,8 +614,13 @@ class Operations {
         
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
+        
         const returned = this.ParseLowest();
+        
         const returning = returned.raw;
+
+        const startline = this.Row;
+        const startchar = this.Col - (returned.raw.length > 0 ? returned.raw[0].length : 0);
         let next = this.Read();
         const checkCheck = () => {
             if(next.Val == "(") {
@@ -613,7 +644,10 @@ class Operations {
                 }
                 if(next.Val == ".") {
                     stillOriginal = false;
-                    returning.push(this.Read().Val);
+                    const val = this.Read().Val;
+                    if(!isUnknown) {
+                        returning.push(val);
+                    }
                     return true;
                 }
             }
@@ -624,6 +658,10 @@ class Operations {
             next = this.Read();
         }
         // here, we add to dependencies, so long as returning.length > 0
+        if(returning.length > 0) {
+            this.tokendependencies.push(new TokenDependency(returning, this.cs, startline, startchar, returned.baseScope));
+        }
+        
         if(isUnknown) {
             return new ReturnType(CompletionItemKind.Variable);
         }
