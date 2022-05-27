@@ -5,7 +5,9 @@ const through = (scope, position, list = true) => {
     let returning = [];
     if(list) {
         for(const vari of scope.vars) {
-            returning.push(vari);
+            if(!vari.ignore) {
+                returning.push(vari);
+            }
         }
     }
     for(const inner of scope.innerscopes) {
@@ -23,7 +25,16 @@ const through = (scope, position, list = true) => {
         if(!list) {
             return through(inner, position, false);
         }
-        returning = returning.concat(through(inner, position));
+        const returned = through(inner, position);
+        for(const vari of returned) {
+            for(let i = 0; i < returning.length; i++) {
+                if(returning[i].inner.label == vari.inner.label) {
+                    returning.splice(i, 1);
+                    break;
+                }
+            }
+        }
+        returning = returning.concat(returned);
         break;
     }
     if(!list) {
@@ -34,7 +45,7 @@ const through = (scope, position, list = true) => {
 const findInVar = (props, inherited, finding) => {
     for(const vari of props) {
         //console.log(vari.inner.label);
-        if(vari.inner.label == finding) {
+        if(vari.inner.label == finding && !vari.ignore) {
             //console.log("found!");
             return vari;
         }
@@ -46,11 +57,20 @@ const findInVar = (props, inherited, finding) => {
 }
 const throughVar = (props, inherited) => {
     let returning = [];
+    let blacklist = [];
     for(const vari of props) {
-        returning.push(vari.inner);
+        if(!vari.ignore) {
+            returning.push(vari.inner);
+            blacklist.push(vari.inner.label);
+        }
     }
     if(inherited !== null) {
-        returning = returning.concat(throughVar(inherited.properties, inherited.inherited));
+        const returned = throughVar(inherited.properties, inherited.inherited);
+        for(const vari of returned) {
+            if(!blacklist.includes(vari.label)) {
+                returned.push(vari);
+            }
+        }
     }
     return returning;
 }

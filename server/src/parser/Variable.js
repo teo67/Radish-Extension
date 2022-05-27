@@ -15,6 +15,7 @@ class Variable {
         this.evaluated = false; // whether the variable has been evaluated using the dependency engine
         this.deps = []; // dependencies to run once the variable is evaluated
         this.propertydeps = {};
+        this.ignore = false;
     }
 }
 module.exports = Variable;

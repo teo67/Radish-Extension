@@ -15,6 +15,9 @@
 			"include": "#comments"
 		},
 		{
+			"include": "#docs"
+		},
+		{
 			"include": "#constants"
 		},
 		{
@@ -44,6 +47,11 @@
 			"name": "comment.block.radish",
 			"begin": "#",
 			"end": "#"
+		},
+		"docs": {
+			"name": "comment.block.documentation.radish", 
+			"begin": ";",
+			"end": ";"
 		},
 		"constants": {
 			"patterns": [{
