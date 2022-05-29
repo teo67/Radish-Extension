@@ -1,17 +1,9 @@
 const lex = require('./Lexing/Lexer.js');
 const Scope = require('./Scope.js');
 const Variable = require('./Variable.js');
-const { textdocument, languageserver, tokenTypes, tokenModifiers } = require('../global.js');
-const { CompletionItemKind, ParameterInformation } = require('vscode-languageserver');
+const { textdocument, languageserver, tokenTypes, tokenKey, server2 } = require('../global.js');
+const CompletionItemKind = server2.CompletionItemKind;
 const TokenTypes = require('./TokenTypes.js');
-// const typeMap = {};
-// for(let i = 0; i < tokenTypes.length; i++) { // compile reverse arrays
-//     typeMap[tokenTypes[i]] = i;  
-// }
-// const modifierMap = {};
-// for(let i = 0; i < tokenModifiers.length; i++) {
-//     modifierMap[tokenModifiers[i]] = i;  
-// }
 class ReturnType {
     constructor(_type, _detail = "", _raw = [], _baseScope = null, _inherited = null, _linkedscope = null, _thisref = null) {
         this.type = _type; // for example: CompletionItemKind.Variable
@@ -37,6 +29,15 @@ class PropertyDependency {
         this.reference = _reference;
     }
 }
+class TokenDependency {
+    constructor(_line, _char, _path, _reference, _baseScope) {
+        this.line = _line;
+        this.char = _char;
+        this.path = _path;
+        this.reference = _reference;
+        this.baseScope = _baseScope;
+    }
+}
 class Operations {
     constructor(reader) {
         this.reader = reader;
@@ -48,10 +49,42 @@ class Operations {
         this.dependencies = [];
         this.propertydependencies = [];
         this.currentthis = null;
+        this.currentDocs = null;
+        this.tokendependencies = [];
     }
 
-    HandleTokenDependency(dep) {
-
+    HandleTokenDependencies() {
+        let overall = [];
+        let lastline = 0;
+        let lastchar = 0;
+        for(const dep of this.tokendependencies) {
+            const gotten = this.GetFromRT(null, dep.reference, dep.path, dep.baseScope, null, "");
+            if(gotten === null || gotten.length != dep.path.length) {
+                continue;
+            }
+            let current = dep.char;
+            let returning = [];
+            for(let i = 0; i < gotten.length; i++) {
+                const adding = [];
+                adding.push(dep.line - 1 - lastline);
+                const savedchar = current - 1;
+                adding.push(savedchar - (dep.line - 1 == lastline ? lastchar : 0));
+                
+                adding.push(dep.path[i].length);
+                current += dep.path[i].length + 1;
+                const index = tokenKey.indexOf(gotten[i].inner.kind);
+                if(index == -1) {
+                    continue;
+                }
+                adding.push(index);
+                adding.push(0);
+                lastline = dep.line - 1;
+                lastchar = savedchar;
+                returning = returning.concat(adding);
+            }
+            overall = overall.concat(returning);
+        }
+        return overall;
     }
 
     CheckVar(vari, dep) {
@@ -198,7 +231,7 @@ class Operations {
         if(dep.find.linkedscope !== null && (found.length > 1 || dep.find.thisref !== null)) {
             let _super = null;
             const _this = this.FindInScope("this", dep.find.linkedscope);
-            console.log("this!!");
+            //console.log("this!!");
             if(_this !== null) {
                 _this.inner.detail = "[object reference]";
                 if(dep.find.thisref !== null) {
@@ -353,7 +386,14 @@ class Operations {
         }
         this.PrevCol = this.reader.col;
         this.PrevRow = this.reader.row;
-        const ran = lex(this.reader);
+        let ran = lex(this.reader);
+        if(ran.Type != TokenTypes.SEMIS) {
+            this.currentDocs = null; 
+        }
+        while(ran.Type == TokenTypes.SEMIS) {
+            this.currentDocs = ran;
+            ran = lex(this.reader);
+        }
         //Print(ran.Val);
         return ran;
     }
@@ -583,7 +623,6 @@ class Operations {
         
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
-        
         const returned = this.ParseLowest();
         
         const returning = returned.raw;
@@ -627,6 +666,10 @@ class Operations {
             next = this.Read();
         }
         
+        if(returning.length > 0) {
+            this.tokendependencies.push(new TokenDependency(startline, startchar, returning, this.cs, returned.baseScope));
+        }
+
         if(isUnknown) {
             return new ReturnType(CompletionItemKind.Variable);
         }
@@ -642,12 +685,13 @@ class Operations {
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "dig" || returned.Val == "d") {
+                const doc = this.currentDocs;
                 let next = this.Read();
                 let prop = false;
                 while(next.Type == TokenTypes.OPERATOR && (next.Val == "public" || next.Val == "private" || next.Val == "protected" || next.Val == "static")) {
                     next = this.Read();
                 }
-                if(next.Type == TokenTypes.KEYWORD && next.Val != "this" && next.Val != "super") { // can't declare a variable named "this"
+                if(next.Type == TokenTypes.KEYWORD && next.Val != "this" && next.Val != "super" && next.Val != "prototype") { // can't declare a variable named "this"
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
                         prop = true;
@@ -689,6 +733,19 @@ class Operations {
                     
                     const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", "");
                     newvar.inner.detail = "[variable]";
+                    if(doc !== null && doc.Val.length > 2) {
+                        const old = doc.Val.substring(1, doc.Val.length - 1);
+                        let edited = '';
+                        for(let i = 0; i < old.length; i++) {
+                            if(old[i] == '\n' || old[i] == '\r') {
+                                edited += '\n';
+                            } else {
+                                edited += old[i];
+                            }
+                        }
+                        newvar.inner.documentation = edited;
+                        //newvar.inner.documentation = doc.Val.substring(1, doc.Val.length - 1);
+                    }
                     if(prop) {
                         newvar.evaluated = true;
                     }
@@ -701,7 +758,7 @@ class Operations {
                     this.currentInt++;
                     return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
                 }
-                throw this.Error(`Expecting a variable name instead of ${next.Val}!`);
+                throw this.Error(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`);
             }
             if(returned.Val == "tool" || returned.Val == "t") {
                 this.RequireSymbol("(");
@@ -736,7 +793,7 @@ class Operations {
             }
             if(returned.Val == "throw" || returned.Val == "import") {
                 this.ParseExpression();
-                return new ReturnType(CompletionItemKind.Variable, `[${returned.Val}]`);
+                return new ReturnType(CompletionItemKind.Variable, `[${returned.Val} statement]`);
             }
             if(returned.Val == "class") {
                 const next = this.Read();
@@ -754,6 +811,23 @@ class Operations {
                     inherited: inherited
                 };
                 const cs = this.ParseScope(true);
+                let hasConstr = false;
+                for(const vari of cs.vars) {
+                    if(vari.inner.label == "constructor") {
+                        hasConstr = vari;
+                        break;
+                    }
+                }
+                if(!hasConstr) {
+                    hasConstr = new Variable("constructor", CompletionItemKind.Function, this.currentInt, "", "");
+                    hasConstr.inner.detail = "[tool] {}";
+                    this.currentInt++;
+                    cs.vars.push(hasConstr);
+                }
+                // const proto = new Variable("prototype", CompletionItemKind.Variable, this.currentInt, "", "");
+                // proto.inner.detail = "[prototype object]";
+                // hasConstr.properties.push(proto);
+                // this.currentInt++;
                 this.RequireSymbol("}");
                 this.currentthis = prevthis;
                 return new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);

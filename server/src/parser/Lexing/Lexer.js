@@ -18,11 +18,13 @@ const CharTypes = {
     whitespace: 5,
     operators: 6,
     symbols: 7, // these cant be chained and are immediately parsed when added
+    semis: 8
 };
 const dict = {};
 const dotChar = '.';
 const quoteChar = '"';
 const hashChar = '#';
+const semi = ';';
 const init = () => {
     const numbers = "0123456789";
     const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -50,6 +52,7 @@ const init = () => {
     dict['\t'] = CharTypes.whitespace;
     dict[quoteChar] = CharTypes.quotes;
     dict[hashChar] = CharTypes.hashtags;
+    dict[semi] = CharTypes.semis;
 }
 init();
 
@@ -66,6 +69,9 @@ const GetTokenType = (current, adding, currentRaw) => { // same = no change
     if(current == TokenTypes.COMMENT && currentRaw.indexOf(hashChar) == currentRaw.lastIndexOf(hashChar)) { // being in a comment gets first priority
         return TokenTypes.SAME;
     }
+    if(current == TokenTypes.SEMIS && currentRaw.indexOf(semi) == currentRaw.lastIndexOf(semi)) { // being in a comment gets first priority
+        return TokenTypes.SAME;
+    }
     if(current == TokenTypes.STRING && currentRaw.indexOf(quoteChar) == currentRaw.lastIndexOf(quoteChar)) { // then being in a string
         return TokenTypes.SAME;
     }
@@ -74,6 +80,8 @@ const GetTokenType = (current, adding, currentRaw) => { // same = no change
             return TokenTypes.STRING;
         case CharTypes.hashtags:
             return TokenTypes.COMMENT;
+        case CharTypes.semis:
+            return TokenTypes.SEMIS;
         case CharTypes.whitespace:
             return TokenTypes.NONE;
         case CharTypes.letter:

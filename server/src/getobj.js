@@ -11,9 +11,10 @@ for(let i = 0; i < nums.length; i++) {
 work.push('_');
 
 module.exports = (document, position) => {
+    //console.log(document);
     const initialIndex = document._lineOffsets[position.line] + position.character - 1;
     //console.log(initialIndex);
-    let currentIndex = initialIndex
+    let currentIndex = initialIndex;
     let returning = [];
     let current = '';
     while(currentIndex >= 0) {
@@ -34,5 +35,6 @@ module.exports = (document, position) => {
         currentIndex--;
     }
     returning.push(current);
+    //console.log(returning);
     return returning;
 }

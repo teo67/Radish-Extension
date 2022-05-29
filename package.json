@@ -55,8 +55,5 @@
             "scopeName": "source.radish",
             "path": "./radish.tmLanguage.json"
         }]
-	},
-	"devDependencies": {
-		"@types/node": "^14.17.0"
 	}
 }

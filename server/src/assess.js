@@ -41,17 +41,19 @@ const printInDetail = (any, numspaces) => {
     return returning;
 }
 const assess = async (document, connection) => {
+    //console.log("assessing");
     if(cached[document.uri] === undefined) {
         cached[document.uri] = {
             cs: null, 
             stamp: -1,
             chain: '',
-            ref: document
+            ref: document, 
+            tokens: []
         };
     }
     //console.log("starting");
     const version = document.version;
-    await new Promise((resolve, reject) => setTimeout(resolve, 1000));
+    await new Promise((resolve, reject) => setTimeout(resolve, 50));
     const version2 = document.version;
     if(version != version2 && !(cached[document.uri] !== undefined && version2 - cached[document.uri].stamp > 20)) {
         return;
@@ -73,13 +75,14 @@ const assess = async (document, connection) => {
             //console.log("dep");
             ops.HandleDependency(dep);
         }
-        console.log(printInDetail(ops.cs, 0));
+        cached[document.uri].tokens = ops.HandleTokenDependencies();
+        //console.log(printInDetail(ops.cs, 0));
         //console.log(ops.propertydependencies);
         //console.log(ops.dependencies);
         //console.log(ops.cs);
         connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
     } catch(e) {
-        console.log(e);
+        //console.log(e);
         //console.log("new error");
         const diagnostic = {
 			severity: DiagnosticSeverity.Error,

@@ -8,6 +8,7 @@ const TokenTypes = {
     BOOLEAN: 6,
     SYMBOL: 7,
     KEYWORD: 8,
-    ENDOFFILE: 9
+    ENDOFFILE: 9, 
+    SEMIS: 10
 };
 module.exports = TokenTypes;

@@ -25,15 +25,8 @@ const through = (scope, position, list = true) => {
         if(!list) {
             return through(inner, position, false);
         }
+
         const returned = through(inner, position);
-        for(const vari of returned) {
-            for(let i = 0; i < returning.length; i++) {
-                if(returning[i].inner.label == vari.inner.label) {
-                    returning.splice(i, 1);
-                    break;
-                }
-            }
-        }
         returning = returning.concat(returned);
         break;
     }
@@ -57,72 +50,67 @@ const findInVar = (props, inherited, finding) => {
 }
 const throughVar = (props, inherited) => {
     let returning = [];
-    let blacklist = [];
     for(const vari of props) {
         if(!vari.ignore) {
             returning.push(vari.inner);
-            blacklist.push(vari.inner.label);
         }
     }
     if(inherited !== null) {
         const returned = throughVar(inherited.properties, inherited.inherited);
-        for(const vari of returned) {
-            if(!blacklist.includes(vari.label)) {
-                returned.push(vari);
-            }
-        }
+        returning = returning.concat(returned);
     }
     return returning;
 }
 module.exports = _textDocumentPosition => {
+        const stored = cached[_textDocumentPosition.textDocument.uri];
+        if(stored === undefined) {
+            return [];
+        }
+        const cs = stored.cs;
+        if(cs === null) {
+            return [];
+        }
+        //console.log(cs.vars);
+        const returned = getobj(stored.ref, _textDocumentPosition.position);
+        //console.log(returned);
+        //console.log(cs);
+        const allvars = through(cs, _textDocumentPosition.position);
+        //console.log(allvars);
+        let current = allvars;
+        let currentinherited = null;
+        for(let i = returned.length - 1; i > 0; i--) {
+            if(returned[i] == '') { // some kind of error
+                current = [];
+                currentinherited = null;
+                break;
+            }
+            if(i == returned.length - 1 && returned[i].startsWith('}')) {
+                current = through(cs, {
+                    line: _textDocumentPosition.position.line, 
+                    character: returned[i].substring(1)
+                }, false);
+                if(!(current.endline - 1 == _textDocumentPosition.position.line && current.endchar - 1 == returned[i].substring(1))) {
+                    //console.log("error finding: " + returned[i].substring(1) + " / " + (current.endchar - 1));
+                    current = [];
+                    currentinherited = null;
+                    break;
+                }
+                current = current.vars;
+                currentinherited = null;
+            } else {
+                const found = findInVar(current, currentinherited, returned[i]);
+                if(found === null) { // couldn't find var
+                    //console.log("none");
+                    current = [];
+                    currentinherited = null;
+                    break;
+                }
+                current = found.properties;
+                currentinherited = found.inherited;
+            }
+        }
+        //console.log(throughVar(current, currentinherited));
+        return throughVar(current, currentinherited);
     //console.log("triggered");
-    const stored = cached[_textDocumentPosition.textDocument.uri];
-    if(stored === undefined) {
-        return [];
-    }
-    const cs = stored.cs;
-    if(cs === null) {
-        return [];
-    }
-    //console.log(cs.vars);
-    const returned = getobj(stored.ref, _textDocumentPosition.position);
-    //console.log(returned);
-    //console.log(cs);
-    const allvars = through(cs, _textDocumentPosition.position);
-    //console.log(allvars);
-    let current = allvars;
-    let currentinherited = null;
-    for(let i = returned.length - 1; i > 0; i--) {
-        if(returned[i] == '') { // some kind of error
-            current = [];
-            currentinherited = null;
-            break;
-        }
-        if(i == returned.length - 1 && returned[i].startsWith('}')) {
-            current = through(cs, {
-                line: _textDocumentPosition.position.line, 
-                character: returned[i].substring(1)
-            }, false);
-            if(!(current.endline - 1 == _textDocumentPosition.position.line && current.endchar - 1 == returned[i].substring(1))) {
-                //console.log("error finding: " + returned[i].substring(1) + " / " + (current.endchar - 1));
-                current = [];
-                currentinherited = null;
-                break;
-            }
-            current = current.vars;
-            currentinherited = null;
-        } else {
-            const found = findInVar(current, currentinherited, returned[i]);
-            if(found === null) { // couldn't find var
-                //console.log("none");
-                current = [];
-                currentinherited = null;
-                break;
-            }
-            current = found.properties;
-            currentinherited = found.inherited;
-        }
-    }
-    //console.log(throughVar(current, currentinherited));
-    return throughVar(current, currentinherited);
+    
 }
