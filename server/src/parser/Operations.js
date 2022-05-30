@@ -61,14 +61,16 @@ class Operations {
         let lastchar = 0;
         for(const dep of this.tokendependencies) {
             //console.log(dep.path + " - " + dep.char)
-            const gotten = this.GetFromRT(null, dep.reference, dep.path, dep.baseScope, null, "");
+            const gotten = this.GetFromRT(null, dep.reference, dep.path, dep.baseScope, null, "", false, true);
+            //console.log(dep.path);
+            //console.log(gotten);
             let current = dep.char;
             if(dep.baseScope !== null) {
                 gotten.shift();
                 current++;
             }
-            if(gotten === null || gotten.length != dep.path.length) {
-                console.log(gotten);
+            if(gotten === null || gotten.length > dep.path.length) {
+                //console.log(gotten);
                 continue;
             }
             
@@ -96,9 +98,10 @@ class Operations {
         return overall;
     }
 
-    CheckVar(vari, dep, previous = null, searching = "") {
+    CheckVar(vari, dep, previous = null, searching = "", playground = false) {
         if(vari === null) {
-            if(previous !== null) {
+            //console.log("null");
+            if(previous !== null && !playground) {
                 if(previous.propertydeps[":" + searching] === undefined) { // we have to add a colon because {}["constructor"] actually means something in js
                     previous.propertydeps[":" + searching] = [];
                 }
@@ -106,7 +109,7 @@ class Operations {
             }
             return false;
         }
-        if(!vari.evaluated) {
+        if(!vari.evaluated && !playground) {
             if(dep !== null) {
                 vari.deps.push(dep);
             }
@@ -115,15 +118,15 @@ class Operations {
         return true;
     }
 
-    GetInherited(str, scoperef, dep) {
+    GetInherited(str, scoperef, dep, playground = false) {
         let inherited = this.FindInScope(str, scoperef);
-        if(!this.CheckVar(inherited, dep)) {
+        if(!this.CheckVar(inherited, dep, null, "", playground)) {
             return null;
         }
         const saved = inherited;
         inherited = this.FindInVariable("prototype", inherited.properties, null);
         //console.log(inherited);
-        if(!this.CheckVar(inherited, dep, saved, "prototype")) {
+        if(!this.CheckVar(inherited, dep, saved, "prototype", playground)) {
             return null;
         }
         return inherited;
@@ -133,10 +136,10 @@ class Operations {
         return this.GetFromRT(dep, dep.reference, rt.raw, rt.baseScope, rt.inherited, rt.detail, propertycreation);
     }
 
-    GetFromRT(dep, ref, raw, baseScope, inherited = null, detail = "", propertycreation = false) { // false = cancel
+    GetFromRT(dep, ref, raw, baseScope, inherited = null, detail = "", propertycreation = false, playground = false) { // false = cancel
         let _inherited = null;
         if(inherited !== null) {
-            _inherited = this.GetInherited(inherited, ref, dep);
+            _inherited = this.GetInherited(inherited, ref, dep, playground);
             if(_inherited === null) {
                 return null;
             }
@@ -175,8 +178,9 @@ class Operations {
                 arg1 = before[before.length - 1];
                 arg2 = raw[i - 1];
             }
-            if(!this.CheckVar(currentVar, dep, arg1, arg2)) {
-                return null;
+            if(!this.CheckVar(currentVar, dep, arg1, arg2, playground)) {
+                //console.log("failed on " + currentVar.inner.label);
+                return playground ? before : null;
             }
             before.push(currentVar);
             currentVar = this.FindInVariable(raw[i], currentVar.properties, currentVar.inherited);
@@ -189,11 +193,11 @@ class Operations {
                     this.PropertyStuff(before[before.length - 1], newprop);
                     currentVar = newprop;
                 } else {
-                    this.CheckVar(null, dep, before[before.length - 1], raw[raw.length - 1]);
-                    return null;
+                    this.CheckVar(null, dep, before[before.length - 1], raw[raw.length - 1], playground);
+                    return playground ? before : null;
                 }
             } else {
-                return null;
+                return playground ? before : null;
             }
         }
         before.push(currentVar);

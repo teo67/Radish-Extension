@@ -4,4 +4,4 @@ d a p {
 if(yes) {
 	d a p 0
 	a.bnull # no b property - fix: maintain all variables as possibilities during autocomplete and narrow them down as you go instead of automatically choosing the 'best' one #
-}
+} # fixed ! #
