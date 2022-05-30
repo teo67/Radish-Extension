@@ -1,14 +1,6 @@
 const TokenTypes = require('../TokenTypes.js');
 const LexEntry = require('./LexEntry.js');
-const OpKeywords = [
-    "if", "elseif", "else", 
-    "while", "for", 
-    "dig", "d", "tool", "t", "plant", "p",
-    "harvest", "h", "cancel", "continue", "end",
-    "new", "null", "class",
-    "public", "private", "protected", "static",
-    "try", "catch", "throw", "import", "all", "pass"
-];
+const OpKeywords = require('../../global').autoCompleteDefaults;
 const CharTypes = {
     letter: 0,
     digit: 1, 

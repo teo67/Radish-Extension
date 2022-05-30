@@ -1,6 +1,19 @@
 
-const { languageserver, cached } = require('./global');
+const { languageserver, cached, autoCompleteDefaults, server2 } = require('./global');
 const getobj = require('./getobj.js');
+let defaults = [];
+for(const def of autoCompleteDefaults) {
+    defaults.push({
+        label: def, 
+        kind: server2.CompletionItemKind.Value, 
+        data: -1, 
+        detail: "[operator]", 
+        documentation: {
+            kind: server2.MarkupKind.Markdown, 
+            value: 'A built-in `Radish` operator. See https://radishpl.com for implementations.'
+        }
+    });
+}
 const through = (scope, position, list = true) => {
     let returning = [];
     if(list) {
@@ -140,6 +153,16 @@ module.exports = _textDocumentPosition => {
         for(let i = 0; i < current.length; i++) {
             all = all.concat(throughVar(current[i], currentinherited[i]));
         }
+        if(all.length == 0 && returned.length > 0 && returned[0].length > 0) {
+            all.push({
+                label: returned[0], 
+                kind: server2.CompletionItemKind.Text,
+                data: -1, 
+                detail: "", 
+                documentation: ""
+            });
+        }
+        all = defaults.concat(all);
         //console.log(all);
         return all;
         //return throughVar(current, currentinherited);
