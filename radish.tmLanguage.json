@@ -59,8 +59,7 @@
 				"match": "\\b(yes|no|null|all)\\b"
 			}, {
 				"name": "constant.numeric.radish",
-				"begin": "[0-9]",
-				"end": "(?![0-9\\.])"
+				"match": "([0-9])([0-9.]*?)(?![0-9\\.])"
 			}]
 		},
 		"strings": {
@@ -80,13 +79,8 @@
 				"name": "entity.name.function.radish",
 				"match": "([a-zA-Z\\_\\$])([a-zA-Z0-9\\_\\$]*?)(?=\\()"
 			}, {
-				"name": "variable.language.radish",
-				"begin": "(?<=\\.)[a-zA-Z\\_\\$]",
-				"end": "(?![a-zA-Z0-9\\_\\$])"
-			}, {
 				"name": "variable.other.radish",
-				"begin": "[a-zA-Z\\_\\$]",
-				"end": "(?![a-zA-Z0-9\\_\\$])"
+				"match": "([a-zA-Z\\_\\$])([a-zA-Z0-9\\_\\$]*?)(?![a-zA-Z0-9\\_\\$])"
 			}]
 		}
 	},
