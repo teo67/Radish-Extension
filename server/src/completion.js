@@ -27,7 +27,7 @@ const through = (scope, position, list = true) => {
         }
 
         const returned = through(inner, position);
-        returning = returning.concat(returned);
+        returning = returned.concat(returning);
         break;
     }
     if(!list) {
@@ -57,7 +57,7 @@ const throughVar = (props, inherited) => {
     }
     if(inherited !== null) {
         const returned = throughVar(inherited.properties, inherited.inherited);
-        returning = returning.concat(returned);
+        returning = returned.concat(returning);
     }
     return returning;
 }

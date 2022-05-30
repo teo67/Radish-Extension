@@ -67,17 +67,15 @@ const assess = async (document, connection) => {
     try {
         ops.ParseScope();
         cached[document.uri].cs = ops.cs;
-        for(const propdep of ops.propertydependencies) {
-            //console.log("prop");
-            ops.HandlePropertyDependency(propdep);
-        }
         for(const dep of ops.dependencies) {
             //console.log("dep");
             ops.HandleDependency(dep);
         }
+        for(const dep of ops.constructordependencies) {
+            ops.HandleConstDep(dep);
+        }
         cached[document.uri].tokens = ops.HandleTokenDependencies();
         //console.log(printInDetail(ops.cs, 0));
-        //console.log(ops.propertydependencies);
         //console.log(ops.dependencies);
         //console.log(ops.cs);
         connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });

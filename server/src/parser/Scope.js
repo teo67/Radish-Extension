@@ -8,7 +8,6 @@ class Scope {
         this.innerscopes = [];
         this.enclosing = _enclosing;
         this.isthis = _isthis;
-        this.params = null; // only for functions (array of strings), used for semantic tokenizing/highlighting
     }
     end(line, char) {
         this.endline = line;

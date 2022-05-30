@@ -9,8 +9,8 @@ const capabilities = {
     workspaceFolder: false,
     diagnostics: false
 };
-const tokenTypes = [server2.SemanticTokenTypes.class, server2.SemanticTokenTypes.function];
-const tokenKey = [server2.CompletionItemKind.Class, server2.CompletionItemKind.Function];
+const tokenTypes = [server2.SemanticTokenTypes.class, server2.SemanticTokenTypes.function, server2.SemanticTokenTypes.parameter];
+const tokenKey = [server2.CompletionItemKind.Class, server2.CompletionItemKind.Function, server2.CompletionItemKind.Field];
 const cached = {};
 module.exports = {
     languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey
