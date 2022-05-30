@@ -7,7 +7,7 @@ for(const def of autoCompleteDefaults) {
         label: def, 
         kind: server2.CompletionItemKind.Value, 
         data: -1, 
-        detail: "[operator]", 
+        detail: `[operator: ${def}]`, 
         documentation: {
             kind: server2.MarkupKind.Markdown, 
             value: 'A built-in `Radish` operator. See https://radishpl.com for implementations.'
@@ -89,7 +89,7 @@ const throughVar = (props, inherited) => {
     return returning;
 }
 module.exports = _textDocumentPosition => {
-        console.log("began completion");
+        //console.log("began completion");
         const stored = cached[_textDocumentPosition.textDocument.uri];
         if(stored === undefined) {
             return [];
@@ -107,7 +107,7 @@ module.exports = _textDocumentPosition => {
         let current = [allvars];
         let currentinherited = [null];
         for(let i = returned.length - 1; i > 0; i--) {
-            console.log("new round: " + returned[i]);
+            //console.log("new round: " + returned[i]);
             if(returned[i] == '') { // some kind of error
                 current = [];
                 currentinherited = [];
@@ -132,8 +132,6 @@ module.exports = _textDocumentPosition => {
                 for(let j = 0; j < current.length; j++) {
                     const varis = findInVar(current[j], currentinherited[j], returned[i]);
                     for(const vari of varis) {
-                        console.log(vari.properties);
-                        console.log(vari.inherited);
                         newc.push(vari.properties);
                         newn.push(vari.inherited);
                     }
@@ -148,7 +146,7 @@ module.exports = _textDocumentPosition => {
             }
         }
         //console.log(throughVar(current, currentinherited));
-        console.log(current);
+        //console.log(current);
         let all = [];
         for(let i = 0; i < current.length; i++) {
             all = all.concat(throughVar(current[i], currentinherited[i]));
@@ -162,7 +160,9 @@ module.exports = _textDocumentPosition => {
                 documentation: ""
             });
         }
-        all = defaults.concat(all);
+        if(returned.length == 1) { // only add defaults if we aren't accessing a property
+            all = defaults.concat(all);
+        }
         //console.log(all);
         return all;
         //return throughVar(current, currentinherited);
