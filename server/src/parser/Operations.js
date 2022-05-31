@@ -291,7 +291,7 @@ class Operations {
             foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
             this.PropertyStuff(foundTarget, prop);
         }
-        foundSet.properties = foundTarget.properties;
+        //foundSet.properties = foundTarget.properties;
         //console.log(foundTarget);
         //console.log(foundSet);
         //console.log(`${foundTarget.inner.detail} -> ${foundSet.inner.detail}`)
@@ -575,7 +575,7 @@ class Operations {
                 } else {
                     this.Stored = next;
                 }
-                newvar.inner.detail = isOptional ? "[optional parameter]" : "[parameter]";
+                newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
                 returning.push(newvar);
                 returningString.push(isOptional ? (key.Val + "?") : key.Val);
                 this.currentInt++;

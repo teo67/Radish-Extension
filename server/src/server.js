@@ -1,10 +1,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
-const completionresolve = require('./completionresolve.js');
 const completion = require('./completion.js');
 const { documents, connection, documentSettings, languageserver, capabilities, tokenTypes, server2 } = require('./global.js');
-const validate = require('./validate.js');
 const assess = require('./assess.js');
 const tokens = require('./tokens.js');
+const hover = require('./hover.js');
 connection.onInitialize((params) => {
     const _capabilities = params.capabilities;
     capabilities.configuration = !!(_capabilities.workspace && !!_capabilities.workspace.configuration);
@@ -27,7 +26,8 @@ connection.onInitialize((params) => {
                 },
                 range: true, 
                 full: true
-            }
+            },
+            hoverProvider: true
         }
     };
     if (capabilities.workspaceFolder) {
@@ -40,6 +40,7 @@ connection.onInitialize((params) => {
     return result;
 });
 connection.onInitialized(() => {
+    console.log("initializing");
     if (capabilities.configuration) {
         connection.client.register(languageserver.DidChangeConfigurationNotification.type, undefined);
     }
@@ -54,12 +55,12 @@ const defaultSettings = { maxNumberOfProblems: 1000 };
 let globalSettings = defaultSettings;
 
 connection.onDidChangeConfiguration(change => {
+    console.log("changed config");
     if (capabilities.configuration) {
         documentSettings.clear();
     } else {
         globalSettings = ((change.settings.radishLanguageServer || defaultSettings));
     }
-    documents.all().forEach(validate);
 });
 function getDocumentSettings(resource) {
     if (!capabilities.configuration) {
@@ -79,16 +80,29 @@ documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
 documents.onDidChangeContent(change => {
-    //console.log("change");
-    //console.log(`changed: ${change.document.version} ${new Date().getSeconds()}`);
-    assess(change.document, connection);
+    const result = assess.execute(change.document);
+    if(result !== null) {
+        connection.sendDiagnostics(result);
+    }
 });
 connection.onDidChangeWatchedFiles(_change => {
-    //console.log('We received a file change event');
+    //assess
+    console.log('We received a file change event');
 });
-connection.onCompletion(completion);
-connection.onCompletionResolve(completionresolve);
-connection.languages.semanticTokens.on(tokens);
-connection.languages.semanticTokens.onRange(tokens);
+connection.onCompletion(c => {
+    return completion.execute(c);
+});
+connection.onCompletionResolve(item => {
+    return item;
+});
+connection.languages.semanticTokens.on(t => {
+    return tokens.execute(t);
+});
+connection.languages.semanticTokens.onRange(t => {
+    return tokens.execute(t);
+});
+connection.onHover(h => {
+    return hover.execute(h);
+});
 documents.listen(connection);
 connection.listen();

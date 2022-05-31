@@ -5,8 +5,8 @@ const Reader = require('./parser/CountingReader.js');
 const Operations = require('./parser/Operations.js');
 const Variable = require('./parser/Variable.js');
 const Scope = require('./parser/Scope.js');
-const { isFunction } = require('util');
 const DiagnosticSeverity = server2.DiagnosticSeverity;
+const Response = require('./Response.js');
 /*
 changed = false: assessing either in progress or done, no further changes
 changed = true: assessing in progress and will repeat once done
@@ -40,8 +40,10 @@ const printInDetail = (any, numspaces) => {
     }
     return returning;
 }
-const assess = async (document, connection) => {
-    //console.log("assessing");
+const assess = new Response(async document => {
+    if(document._lineOffsets === undefined) {
+        document.getLineOffsets(); // generate line offsets if they start as undefined
+    }
     if(cached[document.uri] === undefined) {
         cached[document.uri] = {
             cs: null, 
@@ -64,6 +66,7 @@ const assess = async (document, connection) => {
     //console.log("running " + document.getText());
     
     const ops = new Operations(new Reader(document));
+    let returning = null;
     try {
         ops.ParseScope();
         cached[document.uri].cs = ops.cs;
@@ -75,10 +78,10 @@ const assess = async (document, connection) => {
             ops.HandleConstDep(dep);
         }
         cached[document.uri].tokens = ops.HandleTokenDependencies();
-        //console.log(printInDetail(ops.cs, 0));
+        console.log(printInDetail(ops.cs, 0));
         //console.log(ops.dependencies);
         //console.log(ops.cs);
-        connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+        returning = { uri: document.uri, diagnostics: [] };
     } catch(e) {
         //console.log(e);
         //console.log("new error");
@@ -97,9 +100,9 @@ const assess = async (document, connection) => {
 			message: e.message,
 			source: 'ex'
 		}
-        connection.sendDiagnostics({ uri: document.uri, diagnostics: [ diagnostic ] });
+        returning = { uri: document.uri, diagnostics: [ diagnostic ] };
     }
     cached[document.uri].stamp = version2;
-    return;
-}
+    return returning;
+}, "assess", null);
 module.exports = assess;

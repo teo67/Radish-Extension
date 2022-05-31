@@ -1,5 +1,6 @@
 const { cached } = require('./global');
-module.exports = change => {
+const Response = require('./Response.js');
+const tokens = new Response(change => {
     const stored = cached[change.textDocument.uri];
     if(stored === undefined) {
         return {data:[]};
@@ -7,4 +8,5 @@ module.exports = change => {
     return {
         data: stored.tokens
     };
-}
+}, "tokens", {data:[]});
+module.exports = tokens;
