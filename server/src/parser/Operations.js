@@ -154,7 +154,7 @@ class Operations {
             if(raw.length == 0) {
                 //console.log("no raw")
                 //console.log("00")
-                currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", ""); // return a blank variable
+                currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt); // return a blank variable
                 currentVar.evaluated = true;
                 currentVar.inner.detail = detail;
                 this.currentInt++;
@@ -165,7 +165,7 @@ class Operations {
             }
         } else {
             //console.log("base exists")
-            currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt, "", "");
+            currentVar = new Variable("", CompletionItemKind.Variable, this.currentInt);
             this.currentInt++;
             currentVar.properties = baseScope;
             currentVar.inherited = _inherited;
@@ -189,7 +189,7 @@ class Operations {
         if(currentVar === null) {
             if(before.length > 0 && raw.length > 0) {
                 if(propertycreation) {
-                    const newprop = new Variable(raw[raw.length - 1], CompletionItemKind.Variable, this.currentInt, "", "");
+                    const newprop = new Variable(raw[raw.length - 1], CompletionItemKind.Variable, this.currentInt);
                     before[before.length - 1].properties.push(newprop);
                     this.PropertyStuff(before[before.length - 1], newprop);
                     currentVar = newprop;
@@ -261,7 +261,7 @@ class Operations {
             const construct = this.FindInVariable("constructor", foundSet.properties, null);
             const saved = foundSet; 
             if(construct === null) {
-                foundSet = new Variable("constructor", CompletionItemKind.Function, this.currentInt, "", "");
+                foundSet = new Variable("constructor", CompletionItemKind.Function, this.currentInt);
                 foundSet.inner.detail = "[tool] {}";
                 foundSet.evaluated = true;  
                 this.currentInt++;
@@ -273,7 +273,7 @@ class Operations {
             }
             let proto = this.FindInVariable("prototype", foundSet.properties, foundSet.inherited);
             if(proto === null) {
-                proto = new Variable("prototype", CompletionItemKind.Variable, this.currentInt, "", "");
+                proto = new Variable("prototype", CompletionItemKind.Variable, this.currentInt);
                 proto.inner.detail = "[prototype object]";
                 proto.evaluated = true;
                 foundSet.properties.push(proto);
@@ -561,7 +561,7 @@ class Operations {
             if(params) {
                 const doc = this.currentDocs;
                 let key = this.Read();
-                const newvar = new Variable(key.Val, CompletionItemKind.Field, this.currentInt, "", "");
+                const newvar = new Variable(key.Val, CompletionItemKind.Field, this.currentInt);
                 const tok = new TokenDependency(this.Row, this.Col - key.Val.length, [key.Val], null, null)
                 this.tokendependencies.push(tok);
                 returningTokens.push(tok);
@@ -581,7 +581,8 @@ class Operations {
                 newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
                 if(doc !== null && doc.Val.length > 2) {
                     const parsed = parseDoc(doc);
-                    newvar.inner.documentation = parsed;
+                    newvar.inner.documentation = parsed[0];
+                    newvar.inner.params = parsed[1];
                     returningDocs.push(parsed); // BREAKPOINT
                 } else {
                     returningDocs.push('');
@@ -772,11 +773,11 @@ class Operations {
                             if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
                                 const _cs = this.ParseScope();
                                 if(newType.Val == "plant" || newType.Val == "p") {
-                                    _cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "", ""));
+                                    _cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt));
                                     this.currentInt++;
                                 }
                                 if(this.currentthis !== null) {
-                                    const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
+                                    const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt);
                                     this.currentInt++;
                                     _this.evaluated = true;
                                     _this.properties = this.currentthis.properties;
@@ -795,10 +796,12 @@ class Operations {
                     }
                     // console.log("adding var");
                     
-                    const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", "");
+                    const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt);
                     newvar.inner.detail = "[variable]";
                     if(doc !== null && doc.Val.length > 2) {
-                        newvar.inner.documentation = parseDoc(doc);
+                        const parsed = parseDoc(doc);
+                        newvar.inner.documentation = parsed[0];
+                        newvar.inner.params = parsed[1];
                     }
                     if(prop) {
                         newvar.evaluated = true;
@@ -839,9 +842,9 @@ class Operations {
                     //console.log(token);
                 }
                 _cs.vars = _cs.vars.concat(params.vars);
-                const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "", "");
+                const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt);
                 this.currentInt++;
-                const _super = new Variable("super", CompletionItemKind.Variable, this.currentInt, "", "");
+                const _super = new Variable("super", CompletionItemKind.Variable, this.currentInt);
                 this.currentInt++;
                 _super.ignore = true;
                 _this.ignore = true;
@@ -883,7 +886,7 @@ class Operations {
                     }
                 }
                 if(!hasConstr) {
-                    hasConstr = new Variable("constructor", CompletionItemKind.Function, this.currentInt, "", "");
+                    hasConstr = new Variable("constructor", CompletionItemKind.Function, this.currentInt);
                     hasConstr.inner.detail = "[tool] {}";
                     this.currentInt++;
                     cs.vars.push(hasConstr);

@@ -4,14 +4,23 @@ const getobj = require('./getobj.js');
 const getResults = require('./getResults.js');
 const addToParams = (params, current, final, i) => {
     if(current != '') {
+        const realCurrent = current[current.length - 1] == '?' ? current.slice(0, current.length - 1) : current;
         const adding = {
-            label: [final.label.length + 9 + i - current.length, final.label.length + 9 + i]
-        };
-        if(current[current.length - 1] == '?') {
-            adding.documentation = {
+            label: [final.label.length + 9 + i - current.length, final.label.length + 9 + i], 
+            documentation: {
                 kind: server2.MarkupKind.Markdown, 
-                value: '*Note: this parameter is optional.*'
-            };
+                value: `parameter name: **${realCurrent}**  
+                `
+            }
+        }; 
+        if(final.params[realCurrent] !== undefined) {
+            adding.documentation.value += final.params[realCurrent];
+        } else {
+            adding.documentation.value += '*No documentation provided.*'
+        }
+        if(current[current.length - 1] == '?') {
+            adding.documentation.value += `  
+            *Note: this parameter is optional.*`;
         }
         params.push(adding);
     }
@@ -92,11 +101,16 @@ const signature = new Response(s => {
             current += paramstring[i];
         }
     }
+    //console.log(final.params);
     return {
         signatures: [
             {
                 label: `${final.label} ${final.detail}`,
-                documentation: final.documentation,
+                documentation: {
+                    kind: server2.MarkupKind.Markdown, 
+                    value: `tool name: **${final.label}**  
+                    ${final.documentation.length < 1 ? '*No documentation provided.*' : final.documentation}`
+                },
                 parameters: params,
                 activeParameter: numCommas
             }

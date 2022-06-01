@@ -21,6 +21,7 @@ const autoCompleteDefaults = [
     "public", "private", "protected", "static",
     "try", "catch", "throw", "import", "all"
 ];
+const assessTime = 50;
 module.exports = {
-    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults
+    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime
 };

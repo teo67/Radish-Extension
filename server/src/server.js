@@ -85,10 +85,11 @@ documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
 documents.onDidChangeContent(change => {
-    const result = assess.execute(change.document)
-    if(result !== null) {
-        connection.sendDiagnostics(result);
-    }
+    assess.execute(change.document).then(result => {
+        if(result !== null) {
+            connection.sendDiagnostics(result);
+        }
+    });
 }); 
 connection.onSignatureHelp(s => {
     return signature.execute(s);

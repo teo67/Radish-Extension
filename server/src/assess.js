@@ -1,4 +1,4 @@
-const { cached, languageserver, server2 } = require('./global.js');
+const { cached, languageserver, server2, assessTime } = require('./global.js');
 //const { Diagnostic, DiagnosticSeverity } = require('./global.js').server2;
 const lex = require('./parser/Lexing/Lexer.js');
 const Reader = require('./parser/CountingReader.js');
@@ -40,7 +40,7 @@ const printInDetail = (any, numspaces) => {
     }
     return returning;
 }
-const assess = new Response(document => {
+const assess = new Response(async document => {
     if(document._lineOffsets === undefined) {
         document.getLineOffsets(); // generate line offsets if they start as undefined
     }
@@ -53,7 +53,12 @@ const assess = new Response(document => {
             tokens: []
         };
     }
+    const version = document.version;
+    await new Promise((resolve, reject) => setTimeout(resolve, assessTime));
     const version2 = document.version;
+    if(version != version2 && !(cached[document.uri] !== undefined && version2 - cached[document.uri].stamp > 20)) {
+        return null;
+    }
     if(cached[document.uri] !== undefined && cached[document.uri].stamp == version2) {
         return null;
     }

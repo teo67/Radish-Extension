@@ -4,10 +4,10 @@ class Response {
         this.name = _name;
         this.default = _default;
     }
-    execute(arg) {
+    async execute(arg) {
         try {
             console.log(`Starting ${this.name}...`);
-            const returned = this._execute(arg);
+            const returned = await this._execute(arg);
             console.log(`Completed ${this.name}!`);
             return returned;
         } catch(e) {
