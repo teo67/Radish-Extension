@@ -4,6 +4,7 @@ const { documents, connection, documentSettings, languageserver, capabilities, t
 const assess = require('./assess.js');
 const tokens = require('./tokens.js');
 const hover = require('./hover.js');
+const signature = require('./signature.js');
 connection.onInitialize((params) => {
     const _capabilities = params.capabilities;
     capabilities.configuration = !!(_capabilities.workspace && !!_capabilities.workspace.configuration);
@@ -27,7 +28,11 @@ connection.onInitialize((params) => {
                 range: true, 
                 full: true
             },
-            hoverProvider: true
+            hoverProvider: true, 
+            signatureHelpProvider: {
+                triggerCharacters: ['(', ','], 
+                retriggerCharacters: [',']
+            }
         }
     };
     if (capabilities.workspaceFolder) {
@@ -80,10 +85,13 @@ documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
 documents.onDidChangeContent(change => {
-    const result = assess.execute(change.document);
+    const result = assess.execute(change.document)
     if(result !== null) {
         connection.sendDiagnostics(result);
     }
+}); 
+connection.onSignatureHelp(s => {
+    return signature.execute(s);
 });
 connection.onDidChangeWatchedFiles(_change => {
     //assess

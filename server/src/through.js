@@ -1,12 +1,6 @@
 const through = (scope, position, list = true) => {
     let returning = [];
-    if(list) {
-        for(const vari of scope.vars) {
-            if(!vari.ignore) {
-                returning.push(vari);
-            }
-        }
-    }
+    let blacklist = [];
     for(const inner of scope.innerscopes) {
         //console.log(`position: (line ${position.line + 1}, char ${position.character}), inner: (start: (line ${inner.startline}, char ${inner.startchar}), end: (line ${inner.endline}, char ${inner.endchar}))`);
         if(position.line + 1 < inner.startline || position.line + 1 > inner.endline) {
@@ -24,8 +18,18 @@ const through = (scope, position, list = true) => {
         }
 
         const returned = through(inner, position);
-        returning = returned.concat(returning);
+        for(const ret of returned) {
+            returning.push(ret);
+            blacklist.push(ret.inner.label);
+        }
         break;
+    }
+    if(list) {
+        for(const vari of scope.vars) {
+            if(!vari.ignore && !blacklist.includes(vari.inner.label)) {
+                returning.push(vari);
+            }
+        }
     }
     if(!list) {
         return scope;

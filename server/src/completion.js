@@ -17,6 +17,7 @@ for(const def of autoCompleteDefaults) {
     });
 }
 const completion = new Response(_textDocumentPosition => {
+    //console.log("i am here");
     const stored = cached[_textDocumentPosition.textDocument.uri];
     if(stored === undefined) {
         return [];
@@ -29,10 +30,13 @@ const completion = new Response(_textDocumentPosition => {
     if(returned === null) {
         return [];
     }
-    let all = getResults(cs, _textDocumentPosition.position, returned);
+    //console.log(returned[1]);
+    let all = getResults(cs, _textDocumentPosition.position, returned[0], returned[1]);
+    //console.log(all);
     if(returned.length == 1) { // only add defaults if we aren't accessing a property
         all = defaults.concat(all);
     }
+    
     return all;
 }, "completion", []);
 module.exports = completion;

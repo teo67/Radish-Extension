@@ -1,7 +1,7 @@
 const through = require('./through.js');
 const findInVar = require('./findInVar.js');
 const throughVar = require('./throughVar.js');
-module.exports = (cs, position, returned) => {
+module.exports = (cs, position, returned, newPosition) => {
     const allvars = through(cs, position);
     //console.log(allvars);
     let current = allvars;
@@ -13,17 +13,16 @@ module.exports = (cs, position, returned) => {
             currentinherited = null;
             break;
         }
-        if(i == returned.length - 1 && returned[i].startsWith('}')) {
-            current = through(cs, {
-                line: position.line, 
-                character: returned[i].substring(1)
-            }, false);
-            if(!(current.endline - 1 == position.line && current.endchar - 1 == returned[i].substring(1))) {
+        if(i == returned.length - 1 && returned[i] == '}') {
+            current = through(cs, newPosition, false);
+            if(!(current.endline - 1 == newPosition.line && current.endchar - 1 == newPosition.character)) {
                 //console.log("error finding: " + returned[i].substring(1) + " / " + (current.endchar - 1));
                 current = [];
                 currentinherited = null;
                 break;
             }
+            //console.log("selected scope");
+            //console.log(current.startline);
             current = current.vars;
             currentinherited = null;
         } else {

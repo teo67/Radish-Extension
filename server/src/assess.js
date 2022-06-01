@@ -40,7 +40,7 @@ const printInDetail = (any, numspaces) => {
     }
     return returning;
 }
-const assess = new Response(async document => {
+const assess = new Response(document => {
     if(document._lineOffsets === undefined) {
         document.getLineOffsets(); // generate line offsets if they start as undefined
     }
@@ -53,18 +53,12 @@ const assess = new Response(async document => {
             tokens: []
         };
     }
-    //console.log("starting");
-    const version = document.version;
-    await new Promise((resolve, reject) => setTimeout(resolve, 50));
     const version2 = document.version;
-    if(version != version2 && !(cached[document.uri] !== undefined && version2 - cached[document.uri].stamp > 20)) {
-        return;
-    }
     if(cached[document.uri] !== undefined && cached[document.uri].stamp == version2) {
-        return;
+        return null;
     }
     //console.log("running " + document.getText());
-    
+    //console.log(document._content);
     const ops = new Operations(new Reader(document));
     let returning = null;
     try {
@@ -78,7 +72,8 @@ const assess = new Response(async document => {
             ops.HandleConstDep(dep);
         }
         cached[document.uri].tokens = ops.HandleTokenDependencies();
-        console.log(printInDetail(ops.cs, 0));
+        //console.log(cached[document.uri].tokens);
+        //console.log(printInDetail(ops.cs, 0));
         //console.log(ops.dependencies);
         //console.log(ops.cs);
         returning = { uri: document.uri, diagnostics: [] };

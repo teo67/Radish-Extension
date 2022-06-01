@@ -6,7 +6,10 @@ class Response {
     }
     execute(arg) {
         try {
-            return this._execute(arg);
+            console.log(`Starting ${this.name}...`);
+            const returned = this._execute(arg);
+            console.log(`Completed ${this.name}!`);
+            return returned;
         } catch(e) {
             console.log(`Response ${this.name} failed!\n${e}`);
             return this.default;

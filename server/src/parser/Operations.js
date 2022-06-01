@@ -4,6 +4,7 @@ const Variable = require('./Variable.js');
 const { textdocument, languageserver, tokenTypes, tokenKey, server2 } = require('../global.js');
 const CompletionItemKind = server2.CompletionItemKind;
 const TokenTypes = require('./TokenTypes.js');
+const parseDoc = require('./parseDoc.js');
 class ReturnType {
     constructor(_type, _detail = "", _raw = [], _baseScope = null, _inherited = null, _linkedscope = null, _thisref = null) {
         this.type = _type; // for example: CompletionItemKind.Variable
@@ -545,6 +546,7 @@ class Operations {
         let returning = [];
         let returningString = [];
         let returningTokens = [];
+        let returningDocs = [];
         let read = this.Read();
         if(read.Type == TokenTypes.SYMBOL && (read.Val == "]" || read.Val == ")")) { // empty list
             this.Stored = read;
@@ -557,6 +559,7 @@ class Operations {
         while(true) { 
             this.Stored = read;
             if(params) {
+                const doc = this.currentDocs;
                 let key = this.Read();
                 const newvar = new Variable(key.Val, CompletionItemKind.Field, this.currentInt, "", "");
                 const tok = new TokenDependency(this.Row, this.Col - key.Val.length, [key.Val], null, null)
@@ -576,6 +579,14 @@ class Operations {
                     this.Stored = next;
                 }
                 newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
+                if(doc !== null && doc.Val.length > 2) {
+                    const parsed = parseDoc(doc);
+                    newvar.inner.documentation = parsed;
+                    returningDocs.push(parsed); // BREAKPOINT
+                } else {
+                    returningDocs.push('');
+                }
+                
                 returning.push(newvar);
                 returningString.push(isOptional ? (key.Val + "?") : key.Val);
                 this.currentInt++;
@@ -595,6 +606,7 @@ class Operations {
         return {
             vars: returning, 
             strings: returningString, 
+            docs: returningDocs,
             tokens: returningTokens
         };
     }
@@ -786,17 +798,7 @@ class Operations {
                     const newvar = new Variable(next.Val, CompletionItemKind.Variable, this.currentInt, "", "");
                     newvar.inner.detail = "[variable]";
                     if(doc !== null && doc.Val.length > 2) {
-                        const old = doc.Val.substring(1, doc.Val.length - 1);
-                        let edited = '';
-                        for(let i = 0; i < old.length; i++) {
-                            if(old[i] == '\n' || old[i] == '\r') {
-                                edited += '\n';
-                            } else {
-                                edited += old[i];
-                            }
-                        }
-                        newvar.inner.documentation = edited;
-                        //newvar.inner.documentation = doc.Val.substring(1, doc.Val.length - 1);
+                        newvar.inner.documentation = parseDoc(doc);
                     }
                     if(prop) {
                         newvar.evaluated = true;
@@ -847,8 +849,11 @@ class Operations {
                 _cs.vars.push(_super);
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs, this.currentthis);
             }
-            if(returned.Val == "null" || returned.Val == "all") {
-                return new ReturnType(CompletionItemKind.Variable, `initial value: ${returned.Val}`);
+            if(returned.Val == "null") {
+                return new ReturnType(CompletionItemKind.Variable, `[null]`);
+            }
+            if(returned.Val == "all") {
+                return new ReturnType(CompletionItemKind.Variable, "[object]");
             }
             if(returned.Val == "throw" || returned.Val == "import") {
                 this.ParseExpression();

@@ -19,10 +19,10 @@ const hover = new Response(params => {
         return null;
     }
     //console.log("stage 2");
-    const all = getResults(cs, params.position, returned);
+    const all = getResults(cs, params.position, returned[0], returned[1]);
     let final = null;
     for(const inner of all) {
-        if(inner.label == returned[0]) {
+        if(inner.label == returned[0][0]) {
             final = inner;
         }
     }
