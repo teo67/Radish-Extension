@@ -8,6 +8,7 @@ class Scope {
         this.innerscopes = [];
         this.enclosing = _enclosing;
         this.isthis = _isthis;
+        this.returns = null;
     }
     end(line, char) {
         this.endline = line;

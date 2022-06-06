@@ -24,7 +24,7 @@ const printInDetail = (any, numspaces) => {
         for(const inner of any.innerscopes) {
             returning += printInDetail(inner, numspaces + 4);
         }
-        returning += `${newindent}  ]${newindent}}`;
+        returning += `${newindent}  ]${newindent}  Returns: ${any.returns === null ? "none" : any.returns.inner.label}${newindent}}`;
     } else if(any instanceof Variable) {
         if(any.inner.label == 'prototype') {
              returning += `${newindent} -- prototype --`;
@@ -34,7 +34,7 @@ const printInDetail = (any, numspaces) => {
             for(const prop of any.properties) {
                 returning += printInDetail(prop, numspaces + 2);
             }
-            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}${newindent}}`;
+            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}, ${newindent}  Returns: ${any.returns === null ? "none" : any.returns.inner.label}${newindent}}`;
         }
         
     }
@@ -83,7 +83,7 @@ const assess = new Response(async document => {
         //console.log(ops.cs);
         returning = { uri: document.uri, diagnostics: [] };
     } catch(e) {
-        //console.log(e);
+        console.log(e);
         //console.log("new error");
         const diagnostic = {
 			severity: DiagnosticSeverity.Error,
@@ -102,6 +102,7 @@ const assess = new Response(async document => {
 		}
         returning = { uri: document.uri, diagnostics: [ diagnostic ] };
     }
+    ops.CleanUp();
     cached[document.uri].stamp = version2;
     return returning;
 }, "assess", null);

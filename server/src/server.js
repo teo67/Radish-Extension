@@ -85,12 +85,14 @@ documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
 documents.onDidChangeContent(change => {
+    //console.log(documents.all());
+    //console.log("changed content");
     assess.execute(change.document).then(result => {
         if(result !== null) {
             connection.sendDiagnostics(result);
         }
     });
-}); 
+});
 connection.onSignatureHelp(s => {
     return signature.execute(s);
 });

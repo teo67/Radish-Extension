@@ -2,6 +2,7 @@ const Response = require('./Response.js');
 const { cached, server2 } = require('./global.js');
 const getobj = require('./getobj.js');
 const getResults = require('./getResults.js');
+const throughVar = require('./throughVar.js');
 const addToParams = (params, current, final, i) => {
     if(current != '') {
         const realCurrent = current[current.length - 1] == '?' ? current.slice(0, current.length - 1) : current;
@@ -70,14 +71,20 @@ const signature = new Response(s => {
     }
     positionCopy.character--; // this always works because the last character must be ( and therefore cannot be a newline
     const returned = getobj(stored.ref, positionCopy);
+    //console.log(returned);
     if(returned === null) {
         return default1;
     }
     const all = getResults(cs, positionCopy, returned[0], returned[1]);
     let final = null;
-    for(const inner of all) {
-        if(inner.label == returned[0][0]) {
-            final = inner;
+    if(returned[0][0] == "()") {
+        final = all.returns === null ? null : all.returns.inner;
+    } else {
+        const throughd = throughVar(all.properties, all.inherited);
+        for(const inner of throughd) {
+            if(inner.label == returned[0][0]) {
+                final = inner;
+            }
         }
     }
     if(final === null || final.detail.substring(0, 6) != '[tool]') {

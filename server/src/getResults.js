@@ -6,11 +6,13 @@ module.exports = (cs, position, returned, newPosition) => {
     //console.log(allvars);
     let current = allvars;
     let currentinherited = null;
+    let currentreturn = null;
     for(let i = returned.length - 1; i > 0; i--) {
         //console.log("new round: " + returned[i]);
         if(returned[i] == '') { // some kind of error
             current = [];
             currentinherited = null;
+            currentreturn= null;
             break;
         }
         if(i == returned.length - 1 && returned[i] == '}') {
@@ -19,24 +21,31 @@ module.exports = (cs, position, returned, newPosition) => {
                 //console.log("error finding: " + returned[i].substring(1) + " / " + (current.endchar - 1));
                 current = [];
                 currentinherited = null;
+                currentreturn = null;
                 break;
             }
             //console.log("selected scope");
             //console.log(current.startline);
             current = current.vars;
             currentinherited = null;
+            currentreturn= null;
         } else {
-            const vari = findInVar(current, currentinherited, returned[i]);
+            const vari = returned[i] == "()" ? currentreturn : findInVar(current, currentinherited, returned[i]);
             if(vari === null) {
                 current = [];
                 currentinherited = null;
+                currentreturn = null;
                 break;
             }
             current = vari.properties;
             currentinherited = vari.inherited;
+            currentreturn = vari.returns;
         }
     }
-    //console.log(throughVar(current, currentinherited));
-    //console.log(returned);
-    return throughVar(current, currentinherited);
+    return {
+        properties: current, 
+        inherited: currentinherited, 
+        returns: currentreturn
+    };
+    //return throughVar(current, currentinherited);
 }

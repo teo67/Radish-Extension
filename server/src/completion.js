@@ -3,6 +3,7 @@ const { languageserver, cached, autoCompleteDefaults, server2 } = require('./glo
 const getResults = require('./getResults.js');
 const getobj = require('./getobj.js');
 const Response = require('./Response.js');
+const throughVar = require('./throughVar.js');
 let defaults = [];
 for(const def of autoCompleteDefaults) {
     defaults.push({
@@ -31,7 +32,8 @@ const completion = new Response(_textDocumentPosition => {
         return [];
     }
     //console.log(returned[1]);
-    let all = getResults(cs, _textDocumentPosition.position, returned[0], returned[1]);
+    const results = getResults(cs, _textDocumentPosition.position, returned[0], returned[1]);
+    let all = throughVar(results.properties, results.inherited);
     //console.log(all);
     if(returned.length == 1) { // only add defaults if we aren't accessing a property
         all = defaults.concat(all);

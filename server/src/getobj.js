@@ -30,13 +30,26 @@ module.exports = (document, position) => {
         current += document._content[upIndex];
     }
     let requireDot = false;
+    let inParens = 0;
     while(currentIndex >= 0) {
         //console.log("beginning cycle");
-        if(document._content[currentIndex] == '.') {
+        if(inParens > 0) {
+            if(document._content[currentIndex] == ')') {
+                inParens++;
+            } else if(document._content[currentIndex] == '(') {
+                inParens--;
+                if(inParens == 0) {
+                    returning.push("()");
+                    // current is still blank at this point, so a dot will invalidate (which is good)
+                }
+            }
+        } else if(document._content[currentIndex] == '.') {
             returning.push(current);
             //console.log("dot");
             current = '';
             requireDot = false;
+        } else if(document._content[currentIndex] == ')' && current == '') {
+            inParens = 1;
         } else {
             const saved = document._content[currentIndex];
             if(whitespace.includes(saved)) {
@@ -69,6 +82,7 @@ module.exports = (document, position) => {
             //console.log(document._lineOffsets);
             positionCopy.character = document._lineOffsets[positionCopy.line + 1] - document._lineOffsets[positionCopy.line] - 1;
         }
+        
         //console.log(positionCopy);
     }
     returning.push(current);
