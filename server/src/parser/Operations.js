@@ -6,13 +6,12 @@ const CompletionItemKind = server2.CompletionItemKind;
 const TokenTypes = require('./TokenTypes.js');
 const parseDoc = require('./parseDoc.js');
 class ReturnType {
-    constructor(_type, _detail = "", _raw = [], _baseScope = null, _inherited = null, _linkedscope = null, _thisref = null, _imported = null) {
+    constructor(_type, _detail = "", _raw = [], _baseScope = null, _inherited = null, _linkedscope = null, _imported = null) {
         this.type = _type; // for example: CompletionItemKind.Variable
         this.raw = _raw; // array of string
         this.baseScope = _baseScope;
         this.inherited = _inherited;
         this.linkedscope = _linkedscope;
-        this.thisref = _thisref;
         this.detail = _detail;
         this.imported = _imported;
     }
@@ -34,12 +33,6 @@ class TokenDependency {
         this.reference = _reference;
         this.baseScope = _baseScope;
         this.before = _before;
-    }
-}
-class ConstructorDependency { // super simple dependency for setting type/description of constructor that has been overridden
-    constructor(_target, _find) {
-        this.target = _target;
-        this.find = _find;
     }
 }
 class Operations {
@@ -137,18 +130,26 @@ class Operations {
         return true;
     }
 
-    GetInherited(str, scoperef, dep, playground = false) {
-        let inherited = this.FindInScope(str, scoperef);
+    GetInherited(rt, dep, playground = false) {
+        let inherited = this.PassInRT(dep, rt);
+        if(inherited === null) {
+            // didnt work
+            return null;
+        }
+        inherited = inherited[inherited.length - 1];
         if(!this.CheckVar(inherited, dep, null, "", playground)) {
             return null;
         }
-        const saved = inherited;
-        inherited = this.FindInVariable("prototype", inherited.properties, null);
-        //console.log(inherited);
-        if(!this.CheckVar(inherited, dep, saved, "prototype", playground)) {
+        const asProto = this.FindInVariable("prototype", inherited.properties, null);
+        if(asProto === null) {
+            return inherited;
+        }
+        if(!this.CheckVar(asProto, dep, inherited, "prototype", playground)) {
+            // wait for it
             return null;
         }
-        return inherited;
+        // we chillin
+        return asProto;
     }
 
     PassInRT(dep, rt, propertycreation = false) {
@@ -162,7 +163,7 @@ class Operations {
         //console.log(raw);console.log(ref);
         let _inherited = null;
         if(inherited !== null) {
-            _inherited = this.GetInherited(inherited, ref, dep, playground);
+            _inherited = this.GetInherited(inherited, dep, playground);
             if(_inherited === null) {
                 return null;
             }
@@ -188,6 +189,7 @@ class Operations {
                 if(linkedscope !== null && raw[0] == "()") {
                     currentVar = linkedscope.returns;
                 } else {
+                    //console.log('getting ' + raw[0])
                     currentVar = this.FindInScope(raw[0], ref);
                 }
                 ignoreFirst = true;
@@ -209,7 +211,7 @@ class Operations {
                 arg2 = raw[i - 1];
             }
             if(!this.CheckVar(currentVar, dep, arg1, arg2, playground)) {
-                //console.log("failed on " + currentVar.inner.label);
+                //console.log("failed on " + currentVar);
                 return playground ? before : null;
             }
             before.push(currentVar);
@@ -248,11 +250,14 @@ class Operations {
         } 
     }
 
-    HandleConstDep(dep) {
-        if(!dep.find.evaluated) {
+    HandleConstDep(constr) {
+        if(constr.evaluated) {
             return;
         }
-        dep.target.inner.detail = dep.find.inner.detail;
+        constr.evaluated = true; // if you implied a constructor
+        for(const _dep of constr.deps) {
+            this.HandleDependency(_dep);
+        }
     }
     HandleDependency(dep) {
         //console.log(dep.target.raw);
@@ -281,24 +286,23 @@ class Operations {
             return;
         }
         if(!this.CheckVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc
+            //console.log('set cancel');
             return;
         }
         //console.log("found!");
         foundSet = foundSet[foundSet.length - 1];
+
+        //console.log(`made it past everything on ${dep.target.raw}`);
         if(dep.find.type == CompletionItemKind.Class) {
             const construct = this.FindInVariable("constructor", foundSet.properties, null);
-            const saved = foundSet; 
-            if(construct === null) {
-                foundSet = new Variable("constructor", CompletionItemKind.Function, this.currentInt);
-                foundSet.inner.detail = "[tool] {}";
-                foundSet.evaluated = true;  
-                this.currentInt++;
-            } else {
-                foundSet = construct;
-                if(!construct.evaluated) {
-                    this.constructordependencies.push(new ConstructorDependency(foundTarget, foundSet)); // save for later
-                }
+            if(construct !== null) { // this should pretty much always be true
+                this.constructordependencies.push(construct);
             }
+            const saved = foundSet; 
+            foundSet = construct;
+            if(!this.CheckVar(construct, dep)) {
+                return;
+            } 
             let proto = this.FindInVariable("prototype", foundSet.properties, foundSet.inherited);
             if(proto === null) {
                 proto = new Variable("prototype", CompletionItemKind.Variable, this.currentInt);
@@ -316,11 +320,52 @@ class Operations {
                 } else {
                     proto.properties.push(newprop);
                     this.PropertyStuff(proto, newprop);
+                    //console.log(newprop.inner.label);
                 }
             }
             
             proto.inherited = saved.inherited;
         }
+        if(dep.find.linkedscope !== null) {
+            if(found.length > 1) {
+                const _this = this.FindInScope("this", dep.find.linkedscope);
+                //console.log("this!!");
+                if(_this !== null) {
+                    const _super = found[found.length - 2].inherited !== null ? this.FindInVariable("constructor", found[found.length - 2].inherited.properties, null) : null;
+                    if(_super !== null && !this.CheckVar(_super, dep)) { // if there is a constructor but it isn't evaluated, save it
+                        return;
+                    } 
+                    _this.inner.detail = "[object reference]";
+                    _this.properties = found[found.length - 2].properties;
+                    _this.inherited = found[found.length - 2].inherited;
+                    for(const newprop of _this.properties) {
+                        this.PropertyStuff(_this, newprop);
+                    }
+                    if(_super !== null) {
+                        const realSuper = this.FindInScope("super", dep.find.linkedscope);
+                        if(realSuper !== null) {
+                            realSuper.evaluated = true;
+                            realSuper.ignore = false;
+                            realSuper.properties = _super.properties;
+                            for(const newprop of realSuper.properties) {
+                                this.PropertyStuff(realSuper, newprop);
+                            }
+                            realSuper.inherited = _super.inherited;
+                            realSuper.inner.detail = _super.inner.detail;
+                            for(const _dep of realSuper.deps) {
+                                this.HandleDependency(_dep);
+                            }
+                        }
+                    }
+                    _this.evaluated = true;
+                    _this.ignore = false;
+                    for(const _dep of _this.deps) {
+                        this.HandleDependency(_dep);
+                    }
+                }
+            }
+        }
+        
         //console.log("found set successfully");
         foundTarget.inherited = foundSet.inherited;
         for(const prop of foundSet.properties) {
@@ -343,62 +388,8 @@ class Operations {
                 this.HandleDependency(_dep);
             }
         }
-        if(dep.find.linkedscope !== null) {
-            if(found.length > 1 || dep.find.thisref !== null) {
-                let _super = null;
-                const _this = this.FindInScope("this", dep.find.linkedscope);
-                //console.log("this!!");
-                if(_this !== null) {
-                    _this.inner.detail = "[object reference]";
-                    if(dep.find.thisref !== null) {
-                        _this.properties = dep.find.thisref.properties;
-                        let inh = null;
-                        if(dep.find.thisref.inherited !== null) {
-                            inh = this.GetInherited(dep.find.thisref.inherited, dep.reference, dep);
-                            if(inh === null) {
-                                return;
-                            }
-                            _super = this.FindInVariable("constructor", inh.properties, null);
-                        }
-                        _this.inherited = inh;
-                    } else { // we know that found[0] !== null atp
-                        _this.properties = found[found.length - 2].properties;
-                        _this.inherited = found[found.length - 2].inherited;
-                        if(found[found.length - 2].inherited !== null) {
-                            _super = this.FindInVariable("constructor", found[found.length - 2].inherited.properties, null);
-                        }
-                    }
-                    for(const newprop of _this.properties) {
-                        this.PropertyStuff(_this, newprop);
-                    }
-                    if(foundTarget.inner.label == "constructor" && _super !== null) {
-                        const realSuper = this.FindInScope("super", dep.find.linkedscope);
-                        if(realSuper !== null) {
-                            if(!_super.evaluated) {
-                                this.constructordependencies.push(new ConstructorDependency(realSuper, _super)); // save for later
-                            }
-                            realSuper.evaluated = true;
-                            realSuper.ignore = false;
-                            realSuper.properties = _super.properties;
-                            for(const newprop of realSuper.properties) {
-                                this.PropertyStuff(realSuper, newprop);
-                            }
-                            realSuper.inherited = _super.inherited;
-                            realSuper.inner.detail = _super.inner.detail;
-                            for(const _dep of realSuper.deps) {
-                                this.HandleDependency(_dep);
-                            }
-                        }
-                    }
-                    _this.evaluated = true;
-                    _this.ignore = false;
-                    for(const _dep of _this.deps) {
-                        this.HandleDependency(_dep);
-                    }
-                }
-            }
-        }
         foundTarget.evaluated = true;
+        foundTarget.ignore = false;
         dep.handled = true;
         //console.log("about to run deps");
         for(const dep of foundTarget.deps) {
@@ -739,7 +730,7 @@ class Operations {
         return this.ParseCalls();
     }
     
-    ParseCalls() {
+    ParseCalls(acceptParens = true) {
         // console.log("parsing calls");
         
         let isUnknown = false; // if so return variable no matter what
@@ -751,7 +742,7 @@ class Operations {
         const startchars = [];
         let next = this.Read();
         const checkCheck = () => {
-            if(next.Val == "(") {
+            if(next.Val == "(" && acceptParens) {
                 stillOriginal = false;
                 this.ParseLi();
                 this.RequireSymbol(")");
@@ -826,6 +817,7 @@ class Operations {
                     this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null));
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
+                        //console.log("getter/setter");
                         prop = true;
                         for(let i = 0; i < 2; i++) {
                             const newType = this.Read();
@@ -837,7 +829,9 @@ class Operations {
                                 throw this.Error(`Expecting plant or harvest function instead of ${newType.Val}!`);
                             }
                             this.RequireSymbol("{");
+                            //console.log("aaa");
                             if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
+                                //console.log('correct value');
                                 const prevFun = this.currentFun;
                                 const _cs = this.ParseScope(false, true);
                                 this.currentFun = prevFun;
@@ -845,14 +839,25 @@ class Operations {
                                     _cs.addVar(new Variable("input", CompletionItemKind.Variable, this.currentInt, "[variable]"));
                                     this.currentInt++;
                                 }
+                                const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt, "[variable]");
+                                this.currentInt++;
+                                const _super = new Variable("super", CompletionItemKind.Variable, this.currentInt, "[variable]");
+                                this.currentInt++;
+                                _super.ignore = true;
+                                _this.ignore = true;
+                                _cs.vars.push(_this);
+                                _cs.vars.push(_super);
                                 if(this.currentthis !== null) {
-                                    const _this = new Variable("this", CompletionItemKind.Variable, this.currentInt);
-                                    this.currentInt++;
-                                    _this.evaluated = true;
-                                    _this.properties = this.currentthis.properties;
-                                    _this.inherited = this.currentthis.inherited;
-                                    _this.inner.detail = "[object reference]";
-                                    _cs.addVar(_this);
+                                    this.dependencies.push(new Dependency(
+                                        new ReturnType(ReturnType.Reference, "", ["this"]), 
+                                        _cs, 
+                                        new ReturnType(CompletionItemKind.Variable, "[object reference]", [], this.currentthis.properties, this.currentthis.inherited)
+                                    ));
+                                    this.dependencies.push(new Dependency(
+                                        new ReturnType(ReturnType.Reference, "", ["super"]), 
+                                        _cs, 
+                                        new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
+                                    ));
                                 }
                             } else {
                                 throw this.Error("Only plant and harvest functions are valid in this context!");
@@ -922,10 +927,22 @@ class Operations {
                 _this.ignore = true;
                 _cs.vars.push(_this);
                 _cs.vars.push(_super);
+                if(this.currentthis !== null) {
+                    this.dependencies.push(new Dependency(
+                        new ReturnType(ReturnType.Reference, "", ["this"]), 
+                        _cs, 
+                        new ReturnType(CompletionItemKind.Variable, "[object reference]", [], this.currentthis.properties, this.currentthis.inherited)
+                    ));
+                    this.dependencies.push(new Dependency(
+                        new ReturnType(ReturnType.Reference, "", ["super"]), 
+                        _cs, 
+                        new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
+                    ));
+                }
                 const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, this.currentInt, "[variable]");
                 this.currentInt++;
                 _cs.returns = returns;
-                return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs, this.currentthis);
+                return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs);
             }
             if(returned.Val == "null") {
                 return new ReturnType(CompletionItemKind.Variable, `[null]`);
@@ -956,7 +973,7 @@ class Operations {
                     const cache = cached[path];
                     if(cache !== undefined) {
                         //console.log(cache.cs.returns);
-                        return new ReturnType(ReturnType.Reference, "[import]", [], null, null, null, null, cache.cs.returns);
+                        return new ReturnType(ReturnType.Reference, "[import]", [], null, null, null, cache.cs.returns);
                     }
                 }
                 return new ReturnType(CompletionItemKind.Variable, "[import]");
@@ -965,9 +982,9 @@ class Operations {
                 const next = this.Read();
                 let inherited = null;
                 if(next.Type == TokenTypes.SYMBOL && next.Val == ":") {
-                    inherited = this.Read().Val;
-                    const tok = new TokenDependency([this.Row], [this.Col - inherited.length], [inherited], this.cs, null);
-                    this.tokendependencies.push(tok);
+                    inherited = this.ParseExpression();
+                    // const tok = new TokenDependency([this.Row], [this.Col - inherited.length], [inherited], this.cs, null);
+                    // this.tokendependencies.push(tok);
                 } else {
                     this.Stored = next;
                 }
@@ -975,7 +992,7 @@ class Operations {
                 this.RequireSymbol("{");
                 const prevthis = this.currentthis;
                 this.currentthis = {
-                    inherited: inherited
+                    inherited: inherited // FIX
                 };
                 const cs = this.ParseScope(true);
                 let hasConstr = false;
@@ -987,6 +1004,7 @@ class Operations {
                 }
                 if(!hasConstr) {
                     hasConstr = new Variable("constructor", CompletionItemKind.Function, this.currentInt);
+                    hasConstr.evaluated = true;
                     hasConstr.inner.detail = "[tool] {}";
                     this.currentInt++;
                     cs.vars.push(hasConstr);
@@ -996,13 +1014,13 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
             }
             if(returned.Val == "new") {
-                const next = this.Read();
-                const tok = new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null);
-                this.tokendependencies.push(tok);
+                const next = this.ParseCalls(false);
+                //const tok = new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null);
+                //this.tokendependencies.push(tok);
                 this.RequireSymbol("(");
                 this.ParseLi();
                 this.RequireSymbol(")");
-                return new ReturnType(CompletionItemKind.Variable, `[object : ${next.Val}]`, [], [], next.Val); // this way the object gets linked to the class it is derived from while still being treated like an object
+                return new ReturnType(CompletionItemKind.Variable, `[object : Class]`, [], [], next.raw); // this way the object gets linked to the class it is derived from while still being treated like an object
             }
         } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN) {
             return new ReturnType(CompletionItemKind.Variable, ["[string]", "[number]", "[boolean]"][[TokenTypes.STRING, TokenTypes.NUMBER, TokenTypes.BOOLEAN].indexOf(returned.Type)]);
