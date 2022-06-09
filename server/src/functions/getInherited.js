@@ -16,6 +16,7 @@ const getInherited = (rt, dep, playground = false) => {
         return inherited;
     }
     if(!checkVar(asProto, dep, inherited, "prototype", playground)) {
+        // wait for it
         return null;
     }
     // we chillin
