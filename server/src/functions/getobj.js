@@ -10,7 +10,7 @@ for(let i = 0; i < nums.length; i++) {
 }
 work.push('_');
 const whitespace = [' ', '\n', '\r', '\xa0', '\t'];
-module.exports = (document, position) => {
+module.exports = (document, position, isHovering = false) => {
     if(document._lineOffsets === undefined || document._content === undefined) {
         return null;
     }
@@ -19,6 +19,9 @@ module.exports = (document, position) => {
         character: position.character
     };
     let currentIndex = document._lineOffsets[position.line] + position.character - 1;
+    if(isHovering && whitespace.includes(document._content[currentIndex])) {
+        return null;
+    }
     let returning = [];
     let current = '';
     let upIndex = currentIndex;

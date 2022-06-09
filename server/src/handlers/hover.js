@@ -1,8 +1,8 @@
-const getobj = require('./getobj.js');
-const getResults = require('./getResults.js');
-const { cached, server2 } = require('./global.js');
+const getobj = require('../functions/getobj.js');
+const getResults = require('../functions/getResults.js');
+const { cached, server2 } = require('../global.js');
 const Response = require('./Response.js');
-const throughVar = require('./throughVar.js');
+const throughVar = require('../functions/throughVar.js');
 const hover = new Response(params => {
     const stored = cached[params.textDocument.uri];
     if(stored === undefined) {
@@ -13,15 +13,18 @@ const hover = new Response(params => {
         return null;
     }
     
-    //console.log("stage 1");
-    //console.log(stored.ref);
-    const returned = getobj(stored.ref, params.position);
+    const realPosition = {
+        line: params.position.line, 
+        character: params.position.character + 1 // for some reason the position given is off
+    };
+    //console.log(realPosition);
+    const returned = getobj(stored.ref, realPosition, true);
     //console.log(returned);
     if(returned === null) {
         return null;
     }
     //console.log("stage 2");
-    const all = getResults(cs, params.position, returned[0], returned[1]);
+    const all = getResults(cs, realPosition, returned[0], returned[1]);
     let final = null;
     if(returned[0][0] == "()") {
         final = all.returns === null ? null : all.returns.inner;
@@ -51,10 +54,13 @@ const hover = new Response(params => {
             break;
     }
     val += `  
-    \`\`\`  
-    ${final.detail}  
-    \`\`\`  
+    \`\`\`${final.detail}\`\`\`  
     ${final.documentation}`;
+    if(final.returns !== null) {
+        //console.log("yes");
+        val += `**returns** \`\`\`${final.returns.inner.detail}\`\`\``;
+    }
+    //console.log(val);
     return {
         contents: {
             kind: server2.MarkupKind.Markdown, 

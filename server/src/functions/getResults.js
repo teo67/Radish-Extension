@@ -1,5 +1,5 @@
 const through = require('./through.js');
-const findInVar = require('./findInVar.js');
+const findInVariable = require('./findInVariable.js');
 const throughVar = require('./throughVar.js');
 module.exports = (cs, position, returned, newPosition) => {
     const allvars = through(cs, position);
@@ -30,7 +30,7 @@ module.exports = (cs, position, returned, newPosition) => {
             currentinherited = null;
             currentreturn= null;
         } else {
-            const vari = returned[i] == "()" ? currentreturn : findInVar(current, currentinherited, returned[i]);
+            const vari = returned[i] == "()" ? currentreturn : findInVariable(returned[i], current, currentinherited);
             if(vari === null) {
                 current = [];
                 currentinherited = null;
@@ -39,7 +39,7 @@ module.exports = (cs, position, returned, newPosition) => {
             }
             current = vari.properties;
             currentinherited = vari.inherited;
-            currentreturn = vari.returns;
+            currentreturn = vari.inner.returns;
         }
     }
     return {

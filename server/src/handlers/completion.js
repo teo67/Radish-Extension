@@ -1,9 +1,9 @@
 
-const { languageserver, cached, autoCompleteDefaults, server2 } = require('./global');
-const getResults = require('./getResults.js');
-const getobj = require('./getobj.js');
+const { languageserver, cached, autoCompleteDefaults, server2 } = require('../global');
+const getResults = require('../functions/getResults.js');
+const getobj = require('../functions/getobj.js');
 const Response = require('./Response.js');
-const throughVar = require('./throughVar.js');
+const throughVar = require('../functions/throughVar.js');
 let defaults = [];
 for(const def of autoCompleteDefaults) {
     defaults.push({

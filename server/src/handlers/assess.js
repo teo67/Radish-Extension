@@ -1,12 +1,13 @@
-const { cached, languageserver, server2, assessTime } = require('./global.js');
-//const { Diagnostic, DiagnosticSeverity } = require('./global.js').server2;
-const lex = require('./parser/Lexing/Lexer.js');
-const Reader = require('./parser/CountingReader.js');
-const Operations = require('./parser/Operations.js');
-const Variable = require('./parser/Variable.js');
-const Scope = require('./parser/Scope.js');
+const { cached, languageserver, server2, assessTime, constructordependencies } = require('../global.js');
+const Reader = require('../classes/CountingReader.js');
+const Operations = require('../classes/Operations.js');
+const Variable = require('../classes//Variable.js');
+const Scope = require('../classes/Scope.js');
 const DiagnosticSeverity = server2.DiagnosticSeverity;
 const Response = require('./Response.js');
+const handleConstDep = require('../functions/handleConstDep.js');
+const handleDependency = require('../functions/handleDependency.js').run;
+const handleTokenDependencies = require('../functions/handleTokenDependencies');
 /*
 changed = false: assessing either in progress or done, no further changes
 changed = true: assessing in progress and will repeat once done
@@ -34,7 +35,7 @@ const printInDetail = (any, numspaces) => {
             for(const prop of any.properties) {
                 returning += printInDetail(prop, numspaces + 2);
             }
-            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}, ${newindent}  Returns: ${any.returns === null ? "none" : any.returns.inner.label}${newindent}}`;
+            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}, ${newindent}  Returns: ${any.inner.returns === null ? "none" : any.inner.returns.inner.label}${newindent}}`;
         }
         
     }
@@ -71,12 +72,12 @@ const assess = new Response(async document => {
         cached[document.uri].cs = ops.cs;
         for(const dep of ops.dependencies) {
             //console.log("dep");
-            ops.HandleDependency(dep);
+            handleDependency(dep);
         }
-        for(const dep of ops.constructordependencies) {
-            ops.HandleConstDep(dep);
+        for(const dep of constructordependencies) {
+            handleConstDep(dep);
         }
-        cached[document.uri].tokens = ops.HandleTokenDependencies();
+        cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
         //console.log(cached[document.uri].tokens);
         //console.log(printInDetail(ops.cs, 0));
         //console.log(ops.dependencies);

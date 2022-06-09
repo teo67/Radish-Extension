@@ -1,6 +1,6 @@
-const TokenTypes = require('../TokenTypes.js');
-const LexEntry = require('./LexEntry.js');
-const OpKeywords = require('../../global').autoCompleteDefaults;
+const TokenTypes = require('../classes/TokenTypes.js');
+const LexEntry = require('../classes/LexEntry.js');
+const OpKeywords = require('../global.js').autoCompleteDefaults;
 const CharTypes = {
     letter: 0,
     digit: 1, 
@@ -50,14 +50,14 @@ init();
 
 
 
-const GetCharType = input => {
+const getCharType = input => {
     if(dict[input] === undefined) {
         return CharTypes.letter;
     }
     return dict[input];
 }
 
-const GetTokenType = (current, adding, currentRaw) => { // same = no change
+const getTokenType = (current, adding, currentRaw) => { // same = no change
     if(current == TokenTypes.COMMENT && currentRaw.indexOf(hashChar) == currentRaw.lastIndexOf(hashChar)) { // being in a comment gets first priority
         return TokenTypes.SAME;
     }
@@ -91,7 +91,7 @@ const GetTokenType = (current, adding, currentRaw) => { // same = no change
     }
 }
 
-const Convert = (current, currentRaw) => {
+const convert = (current, currentRaw) => {
     if(current == TokenTypes.KEYWORD) {
         let type = TokenTypes.KEYWORD;
         if(currentRaw == "yes" || currentRaw == "no") {
@@ -110,7 +110,7 @@ const Convert = (current, currentRaw) => {
     return new LexEntry(current, currentRaw);
 }
 
-const Run = reader => {
+const run = reader => {
     if(reader.EndOfStream) {
         return new LexEntry(TokenTypes.ENDOFFILE, "");
     }
@@ -118,13 +118,13 @@ const Run = reader => {
     let current = TokenTypes.NONE;
     do {
         const read = reader.Peek();
-        const newToken = GetTokenType(current, GetCharType(read), currentRaw);
+        const newToken = getTokenType(current, getCharType(read), currentRaw);
         if(newToken == TokenTypes.SAME) {
             reader.Read();
             currentRaw += read;
         } else {
             if(current != TokenTypes.COMMENT && current != TokenTypes.NONE) {
-                return Convert(current, currentRaw);
+                return convert(current, currentRaw);
             }
             reader.Read();
             current = newToken;
@@ -134,7 +134,7 @@ const Run = reader => {
     if(current == TokenTypes.COMMENT || current == TokenTypes.NONE) {
         return new LexEntry(TokenTypes.ENDOFFILE, "");
     }
-    return Convert(current, currentRaw);
+    return convert(current, currentRaw);
 }
 
-module.exports = Run;
+module.exports = run;

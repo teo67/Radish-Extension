@@ -1,8 +1,8 @@
 const Response = require('./Response.js');
-const { cached, server2 } = require('./global.js');
-const getobj = require('./getobj.js');
-const getResults = require('./getResults.js');
-const throughVar = require('./throughVar.js');
+const { cached, server2 } = require('../global.js');
+const getobj = require('../functions/getobj.js');
+const getResults = require('../functions/getResults.js');
+const throughVar = require('../functions/throughVar.js');
 const addToParams = (params, current, final, i) => {
     if(current != '') {
         const realCurrent = current[current.length - 1] == '?' ? current.slice(0, current.length - 1) : current;
@@ -116,7 +116,8 @@ const signature = new Response(s => {
                 documentation: {
                     kind: server2.MarkupKind.Markdown, 
                     value: `tool name: **${final.label}**  
-                    ${final.documentation.length < 1 ? '*No documentation provided.*' : final.documentation}`
+                    ${final.documentation.length < 1 ? '*No documentation provided.*' : final.documentation}  
+                    ${final.returns === null ? '*No explicit return value.*' : `**returns** \`\`\`${final.returns.inner.detail}\`\`\``}`
                 },
                 parameters: params,
                 activeParameter: numCommas

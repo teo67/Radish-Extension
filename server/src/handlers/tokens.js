@@ -1,4 +1,4 @@
-const { cached, assessTime } = require('./global');
+const { cached, assessTime } = require('../global');
 const Response = require('./Response.js');
 const tokens = new Response(async change => {
     const stored = cached[change.textDocument.uri];
