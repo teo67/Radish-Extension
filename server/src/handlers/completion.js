@@ -27,7 +27,7 @@ const completion = new Response(_textDocumentPosition => {
     if(cs === null) {
         return [];
     }
-    const returned = getobj(stored.ref, _textDocumentPosition.position);
+    const returned = getobj(stored.ref, stored.noHoverZones, _textDocumentPosition.position);
     if(returned === null) {
         return [];
     }

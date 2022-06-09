@@ -70,7 +70,7 @@ const signature = new Response(s => {
         return default1;
     }
     positionCopy.character--; // this always works because the last character must be ( and therefore cannot be a newline
-    const returned = getobj(stored.ref, positionCopy);
+    const returned = getobj(stored.ref, stored.noHoverZones, positionCopy);
     //console.log(returned);
     if(returned === null) {
         return default1;

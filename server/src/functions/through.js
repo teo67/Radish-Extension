@@ -1,15 +1,9 @@
+const isInScope = require('./isInScope.js');
 const through = (scope, position, list = true) => {
     let returning = [];
     let blacklist = [];
     for(const inner of scope.innerscopes) {
-        //console.log(`position: (line ${position.line + 1}, char ${position.character}), inner: (start: (line ${inner.startline}, char ${inner.startchar}), end: (line ${inner.endline}, char ${inner.endchar}))`);
-        if(position.line + 1 < inner.startline || position.line + 1 > inner.endline) {
-            continue;
-        }
-        if(position.line + 1 == inner.startline && position.character < inner.startchar) {
-            continue;
-        }
-        if(position.line + 1 == inner.endline && position.character > inner.endchar) {
+        if(!isInScope(position, inner)) {
             continue;
         }
         //console.log("going to inner scope");

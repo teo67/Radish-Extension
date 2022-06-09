@@ -18,7 +18,7 @@ const hover = new Response(params => {
         character: params.position.character + 1 // for some reason the position given is off
     };
     //console.log(realPosition);
-    const returned = getobj(stored.ref, realPosition, true);
+    const returned = getobj(stored.ref, stored.noHoverZones, realPosition, true);
     //console.log(returned);
     if(returned === null) {
         return null;

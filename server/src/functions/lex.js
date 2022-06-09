@@ -1,6 +1,7 @@
 const TokenTypes = require('../classes/TokenTypes.js');
 const LexEntry = require('../classes/LexEntry.js');
-const OpKeywords = require('../global.js').autoCompleteDefaults;
+const global = require('../global.js');
+const OpKeywords = global.autoCompleteDefaults;
 const CharTypes = {
     letter: 0,
     digit: 1, 
@@ -123,7 +124,7 @@ const run = reader => {
             reader.Read();
             currentRaw += read;
         } else {
-            if(current != TokenTypes.COMMENT && current != TokenTypes.NONE) {
+            if(current != TokenTypes.NONE) {
                 return convert(current, currentRaw);
             }
             reader.Read();
@@ -131,7 +132,7 @@ const run = reader => {
             currentRaw = read;
         }
     } while(!reader.EndOfStream);
-    if(current == TokenTypes.COMMENT || current == TokenTypes.NONE) {
+    if(current == TokenTypes.NONE) {
         return new LexEntry(TokenTypes.ENDOFFILE, "");
     }
     return convert(current, currentRaw);

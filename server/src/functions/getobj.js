@@ -1,3 +1,4 @@
+const isInScope = require('./isInScope.js');
 const letters = 'abcdefghijklmnopqrstuvwxyz';
 const work = [];
 for(let i = 0; i < letters.length; i++) {
@@ -10,9 +11,15 @@ for(let i = 0; i < nums.length; i++) {
 }
 work.push('_');
 const whitespace = [' ', '\n', '\r', '\xa0', '\t'];
-module.exports = (document, position, isHovering = false) => {
+module.exports = (document, noHoverZones, position, isHovering = false) => {
     if(document._lineOffsets === undefined || document._content === undefined) {
         return null;
+    }
+    for(const zone of noHoverZones) {
+        console.log(position);
+        if(isInScope(position, zone, 1)) {
+            return null;
+        }
     }
     const positionCopy = {
         line: position.line, 

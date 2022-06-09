@@ -131,6 +131,7 @@ class Operations {
                 });
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "cancel" || read.Val == "continue" || read.Val == "end")) {
                 // nothing to do here
+                this.cs.markUnused(this.Row, this.Col);
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "harvest" || read.Val == "h")) {
                 const ret = this.ParseExpression();
                 let fun = this.currentFun;
@@ -144,6 +145,8 @@ class Operations {
                 }
                 const return1 = new ReturnType(ReturnType.Reference, "", ["()"], null, null, fun);
                 this.dependencies.push(new Dependency(return1, this.cs, ret));
+
+                this.cs.markUnused(this.Row, this.Col);
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "try") {
                 this.RequireSymbol("{");
                 this.ParseScope();
@@ -163,7 +166,7 @@ class Operations {
             read = this.Read();
         }
         
-        newscope.end(this.Row, this.Col);
+        newscope.end(this.Row, this.Col - read.Val.length); // we subtract 1 to ignore the last bracket
         this.Stored = read;
         if(saved !== null) {
             saved.append(newscope);
@@ -564,7 +567,7 @@ class Operations {
                         new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
                     ));
                 }
-                const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[variable]");
+                const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[no explicit value]");
                 this.currentInt++;
                 _cs.returns = returns;
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs);

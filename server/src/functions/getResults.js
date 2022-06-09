@@ -17,7 +17,7 @@ module.exports = (cs, position, returned, newPosition) => {
         }
         if(i == returned.length - 1 && returned[i] == '}') {
             current = through(cs, newPosition, false);
-            if(!(current.endline - 1 == newPosition.line && current.endchar - 1 == newPosition.character)) {
+            if(!(current.endline - 1 == newPosition.line && current.endchar == newPosition.character)) {
                 //console.log("error finding: " + returned[i].substring(1) + " / " + (current.endchar - 1));
                 current = [];
                 currentinherited = null;

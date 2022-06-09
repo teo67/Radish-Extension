@@ -1,4 +1,4 @@
-const { cached, languageserver, server2, assessTime, constructordependencies } = require('../global.js');
+const { cached, languageserver, server2, assessTime, constructordependencies, unusedAreas, reset } = require('../global.js');
 const Reader = require('../classes/CountingReader.js');
 const Operations = require('../classes/Operations.js');
 const Variable = require('../classes//Variable.js');
@@ -51,7 +51,8 @@ const assess = new Response(async document => {
             stamp: -1,
             chain: '',
             ref: document, 
-            tokens: []
+            tokens: [], 
+            noHoverZones: []
         };
     }
     const version = document.version;
@@ -68,8 +69,12 @@ const assess = new Response(async document => {
     const ops = new Operations(new Reader(document));
     let returning = null;
     try {
+        reset();
         ops.ParseScope();
+        
         cached[document.uri].cs = ops.cs;
+        cached[document.uri].noHoverZones = ops.noHoverZones;
+
         for(const dep of ops.dependencies) {
             //console.log("dep");
             handleDependency(dep);
@@ -79,10 +84,11 @@ const assess = new Response(async document => {
         }
         cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
         //console.log(cached[document.uri].tokens);
-        //console.log(printInDetail(ops.cs, 0));
+        console.log(printInDetail(ops.cs, 0));
         //console.log(ops.dependencies);
         //console.log(ops.cs);
-        returning = { uri: document.uri, diagnostics: [] };
+        console.log(ops.noHoverZones);
+        returning = { uri: document.uri, diagnostics: unusedAreas };
     } catch(e) {
         console.log(e);
         //console.log("new error");
@@ -99,7 +105,7 @@ const assess = new Response(async document => {
                 }
 			},
 			message: e.message,
-			source: 'ex'
+			source: 'Radish Language Server'
 		}
         returning = { uri: document.uri, diagnostics: [ diagnostic ] };
     }

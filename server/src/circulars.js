@@ -22,4 +22,5 @@ module.exports = () => {
     for(const circle of circles) {
         circle.handle();
     }
+    return;
 }
