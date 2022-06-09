@@ -8,14 +8,14 @@ const getInherited = (rt, dep, playground = false) => {
         return null;
     }
     inherited = inherited[inherited.length - 1];
-    if(checkVar(inherited, dep, null, "", playground)) {
+    if(!checkVar(inherited, dep, null, "", playground)) {
         return null;
     }
     const asProto = findInVariable("prototype", inherited.properties, null);
     if(asProto === null) {
         return inherited;
     }
-    if(checkVar(asProto, dep, inherited, "prototype", playground)) {
+    if(!checkVar(asProto, dep, inherited, "prototype", playground)) {
         // wait for it
         return null;
     }
