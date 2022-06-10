@@ -3,8 +3,8 @@ const findInVariable = require('./findInVariable.js');
 const checkVar = require('./checkVar.js');
 const Variable = require('../classes/Variable.js');
 const findInScope = require('./findInScope.js');
-const { constructordependencies, server2 } = require('../global.js');
-const CompletionItemKind = server2.CompletionItemKind;
+const global = require('../global.js');
+const CompletionItemKind = global.server2.CompletionItemKind;
 const ReturnType = require('../classes/returnType.js');
 const handleDependency = (dep) => {
     //console.log('started: ' + `dep ${dep.target.raw}, ${dep.find.raw}`);
@@ -45,7 +45,7 @@ const handleDependency = (dep) => {
     if(dep.find.type == CompletionItemKind.Class) {
         const construct = findInVariable("constructor", foundSet.properties, null);
         if(construct !== null) { // this should pretty much always be true
-            constructordependencies.push(construct);
+            global.currentOperator.constructordependencies.push(construct);
         }
         const saved = foundSet; 
         foundSet = construct;

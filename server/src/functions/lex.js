@@ -1,7 +1,6 @@
 const TokenTypes = require('../classes/TokenTypes.js');
 const LexEntry = require('../classes/LexEntry.js');
 const global = require('../global.js');
-const OpKeywords = global.autoCompleteDefaults;
 const CharTypes = {
     letter: 0,
     digit: 1, 
@@ -98,7 +97,7 @@ const convert = (current, currentRaw) => {
         if(currentRaw == "yes" || currentRaw == "no") {
             type = TokenTypes.BOOLEAN;
         }
-        if(OpKeywords.includes(currentRaw)) {
+        if(global.autoCompleteDefaults.includes(currentRaw)) {
             type = TokenTypes.OPERATOR;
         }
         //Console.WriteLine($"Lexer returning {type}: {currentRaw}");
@@ -117,6 +116,7 @@ const run = reader => {
     }
     let currentRaw = "";
     let current = TokenTypes.NONE;
+    let startPos = null;
     do {
         const read = reader.Peek();
         const newToken = getTokenType(current, getCharType(read), currentRaw);
@@ -124,15 +124,29 @@ const run = reader => {
             reader.Read();
             currentRaw += read;
         } else {
-            if(current != TokenTypes.NONE) {
+            if(current != TokenTypes.COMMENT && current != TokenTypes.NONE) {
                 return convert(current, currentRaw);
             }
+            const saved = startPos;
+            startPos = {
+                line: reader.row, 
+                character: reader.col
+            };
+            if(saved !== null && (current == TokenTypes.COMMENT || current == TokenTypes.SEMIS)) {
+                global.currentOperator.noHoverZones.push({
+                    startline: saved.line, 
+                    startchar: saved.character + 1,
+                    endline: startPos.line, 
+                    endchar: startPos.character - 1
+                });
+            }
             reader.Read();
+            
             current = newToken;
             currentRaw = read;
         }
     } while(!reader.EndOfStream);
-    if(current == TokenTypes.NONE) {
+    if(current == TokenTypes.COMMENT || current == TokenTypes.NONE) {
         return new LexEntry(TokenTypes.ENDOFFILE, "");
     }
     return convert(current, currentRaw);

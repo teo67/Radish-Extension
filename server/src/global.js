@@ -22,12 +22,7 @@ const autoCompleteDefaults = [
     "try", "catch", "throw", "import", "all"
 ];
 const assessTime = 50;
-const constructordependencies = [];
-const unusedAreas = [];
-const reset = () => {
-    constructordependencies.length = 0;
-    unusedAreas.length = 0;
-}
+let currentOperator = null;
 module.exports = {
-    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, constructordependencies, unusedAreas, reset
+    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, currentOperator
 };

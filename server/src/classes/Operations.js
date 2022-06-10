@@ -37,6 +37,9 @@ class Operations {
         this.currentDocs = null;
         this.currentFun = null;
         this.tokendependencies = [];
+        this.noHoverZones = [];
+        this.unusedAreas = [];
+        this.constructordependencies = [];
         this.path = reader.file.uri.slice(0, reader.file.uri.lastIndexOf("/"));
     }
 
@@ -46,6 +49,9 @@ class Operations {
         this.dependencies = [];
         this.currentthis = null;
         this.tokendependencies = [];
+        this.noHoverZones = [];
+        this.unusedAreas = [];
+        this.constructordependencies = [];
     }
 
     RequireSymbol(input) {

@@ -1,4 +1,4 @@
-const { unusedAreas, server2 } = require('../global.js');
+const global = require('../global.js');
 
 class Scope {
     constructor(_startline, _startchar, _enclosing = null, _isthis = false) {
@@ -20,8 +20,8 @@ class Scope {
         this.endchar = char;
         if(this.unusedchar != -1 && this.unusedline != -1) {
             console.log('ending');
-            unusedAreas.push({
-                severity: server2.DiagnosticSeverity.Hint,
+            global.currentOperator.unusedAreas.push({
+                severity: global.server2.DiagnosticSeverity.Hint,
                 range: {
                     start: {
                         line: this.unusedline - 1, 
@@ -34,7 +34,7 @@ class Scope {
                 },
                 message: 'This code is after a breaking statement and will not run.',
                 source: 'Radish Language Server', 
-                tags: [server2.DiagnosticTag.Unnecessary]
+                tags: [global.server2.DiagnosticTag.Unnecessary]
             });
         }
     }

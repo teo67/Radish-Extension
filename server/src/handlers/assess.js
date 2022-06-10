@@ -1,9 +1,9 @@
-const { cached, languageserver, server2, assessTime, constructordependencies, unusedAreas, reset } = require('../global.js');
+const global = require('../global.js');
 const Reader = require('../classes/CountingReader.js');
 const Operations = require('../classes/Operations.js');
 const Variable = require('../classes//Variable.js');
 const Scope = require('../classes/Scope.js');
-const DiagnosticSeverity = server2.DiagnosticSeverity;
+const DiagnosticSeverity = global.server2.DiagnosticSeverity;
 const Response = require('./Response.js');
 const handleConstDep = require('../functions/handleConstDep.js');
 const handleDependency = require('../functions/handleDependency.js').run;
@@ -45,8 +45,8 @@ const assess = new Response(async document => {
     if(document._lineOffsets === undefined) {
         document.getLineOffsets(); // generate line offsets if they start as undefined
     }
-    if(cached[document.uri] === undefined) {
-        cached[document.uri] = {
+    if(global.cached[document.uri] === undefined) {
+        global.cached[document.uri] = {
             cs: null, 
             stamp: -1,
             chain: '',
@@ -56,39 +56,40 @@ const assess = new Response(async document => {
         };
     }
     const version = document.version;
-    await new Promise((resolve, reject) => setTimeout(resolve, assessTime));
+    await new Promise((resolve, reject) => setTimeout(resolve, global.assessTime));
     const version2 = document.version;
-    if(version != version2 && !(cached[document.uri] !== undefined && version2 - cached[document.uri].stamp > 20)) {
+    if(version != version2 && !(global.cached[document.uri] !== undefined && version2 - global.cached[document.uri].stamp > 20)) {
         return null;
     }
-    if(cached[document.uri] !== undefined && cached[document.uri].stamp == version2) {
+    if(global.cached[document.uri] !== undefined && global.cached[document.uri].stamp == version2) {
         return null;
     }
     //console.log("running " + document.getText());
     //console.log(document._content);
     const ops = new Operations(new Reader(document));
+    global.currentOperator = ops;
     let returning = null;
     try {
-        reset();
+        
         ops.ParseScope();
         
-        cached[document.uri].cs = ops.cs;
-        cached[document.uri].noHoverZones = ops.noHoverZones;
+        global.cached[document.uri].cs = ops.cs;
+        global.cached[document.uri].noHoverZones = ops.noHoverZones;
 
         for(const dep of ops.dependencies) {
             //console.log("dep");
             handleDependency(dep);
         }
-        for(const dep of constructordependencies) {
+        for(const dep of ops.constructordependencies) {
             handleConstDep(dep);
         }
-        cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
-        //console.log(cached[document.uri].tokens);
+        global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
+        //console.log(global.cached[document.uri].tokens);
         console.log(printInDetail(ops.cs, 0));
         //console.log(ops.dependencies);
         //console.log(ops.cs);
         console.log(ops.noHoverZones);
-        returning = { uri: document.uri, diagnostics: unusedAreas };
+        returning = { uri: document.uri, diagnostics: ops.unusedAreas };
     } catch(e) {
         console.log(e);
         //console.log("new error");
@@ -109,8 +110,9 @@ const assess = new Response(async document => {
 		}
         returning = { uri: document.uri, diagnostics: [ diagnostic ] };
     }
+    global.currentOperator = null;
     ops.CleanUp();
-    cached[document.uri].stamp = version2;
+    global.cached[document.uri].stamp = version2;
     return returning;
 }, "assess", null);
 module.exports = assess;
