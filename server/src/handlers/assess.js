@@ -69,47 +69,27 @@ const assess = new Response(async document => {
     const ops = new Operations(new Reader(document));
     global.currentOperator = ops;
     let returning = null;
-    try {
-        
-        ops.ParseScope();
-        
-        global.cached[document.uri].cs = ops.cs;
-        global.cached[document.uri].noHoverZones = ops.noHoverZones;
+    ops.ParseScope();
+    console.log(ops.dependencies);
+    global.cached[document.uri].cs = ops.cs;
+    global.cached[document.uri].noHoverZones = ops.noHoverZones;
 
-        for(const dep of ops.dependencies) {
-            //console.log("dep");
-            handleDependency(dep);
-        }
-        for(const dep of ops.constructordependencies) {
-            handleConstDep(dep);
-        }
-        global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
-        //console.log(global.cached[document.uri].tokens);
-        console.log(printInDetail(ops.cs, 0));
-        //console.log(ops.dependencies);
-        //console.log(ops.cs);
-        console.log(ops.noHoverZones);
-        returning = { uri: document.uri, diagnostics: ops.unusedAreas };
-    } catch(e) {
-        console.log(e);
-        //console.log("new error");
-        const diagnostic = {
-			severity: DiagnosticSeverity.Error,
-			range: {
-				start: {
-                    line: e.row, 
-                    character: e.col
-                }, 
-                end: {
-                    line: e.row, 
-                    character: e.col + 1
-                }
-			},
-			message: e.message,
-			source: 'Radish Language Server'
-		}
-        returning = { uri: document.uri, diagnostics: [ diagnostic ] };
+    for(const dep of ops.dependencies) {
+        //console.log("dep");
+        handleDependency(dep);
     }
+    for(const dep of ops.constructordependencies) {
+        handleConstDep(dep);
+    }
+    global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
+    //console.log(global.cached[document.uri].tokens);
+    //console.log(printInDetail(ops.cs, 0));
+    //console.log(ops.dependencies);
+    //console.log(ops.cs);
+    //console.log(ops.noHoverZones);
+    //console.log(ops.diagnostics);
+    returning = { uri: document.uri, diagnostics: ops.diagnostics };
+    //console.log('aaaa')
     global.currentOperator = null;
     ops.CleanUp();
     global.cached[document.uri].stamp = version2;

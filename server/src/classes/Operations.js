@@ -38,7 +38,7 @@ class Operations {
         this.currentFun = null;
         this.tokendependencies = [];
         this.noHoverZones = [];
-        this.unusedAreas = [];
+        this.diagnostics = [];
         this.constructordependencies = [];
         this.path = reader.file.uri.slice(0, reader.file.uri.lastIndexOf("/"));
     }
@@ -50,14 +50,41 @@ class Operations {
         this.currentthis = null;
         this.tokendependencies = [];
         this.noHoverZones = [];
-        this.unusedAreas = [];
+        this.diagnostics = [];
         this.constructordependencies = [];
+    }
+
+    AddDiagnostic(message, start, end = {
+        line: this.Row - 1, 
+        character: this.Col - 1
+    }) {
+        this.diagnostics.push({
+            severity: server2.DiagnosticSeverity.Error,
+            range: {
+                start: start, 
+                end: end
+            },
+            message: message,
+            source: 'Radish Language Server', 
+            tags: []
+        });
+    }
+
+    ErrorAndStore(message, read, nostore = false) {
+        this.AddDiagnostic(message, {
+            line: this.Row - 1, 
+            character: this.Col - 1 - read.Val.length
+        });
+        if(nostore) {
+            return;
+        }
+        this.Stored = read;
     }
 
     RequireSymbol(input) {
         const next = this.Read();
         if(!(next.Type == TokenTypes.SYMBOL && next.Val == input)) {
-            throw this.Error(`Error: expected symbol: ${input}`);
+            this.ErrorAndStore(`Error: expected symbol: ${input}`, next);
         }
     }
 
@@ -104,7 +131,7 @@ class Operations {
         return ran;
     }
     ParseScope(setthis = false, setfun = false) { //returns scope
-        // console.log("parsing scope");
+        //console.log("parsing scope");
         const saved = this.cs;
         const newscope = new Scope(this.Row, this.Col, this.cs);
         this.cs = newscope;
@@ -163,7 +190,7 @@ class Operations {
                     this.ParseScope();
                     this.RequireSymbol("}");
                 } else {
-                    throw this.Error("Expecting catch phrase after try {}");
+                    this.ErrorAndStore("Expecting catch phrase after try {}", next);
                 }
             } else {
                 this.Stored = read;
@@ -196,10 +223,10 @@ class Operations {
     }
 
     ParseIfs() {
-        // console.log("parsing ifs");
+        //console.log("parsing ifs");
         const IF = this.Read();
         if(!(IF.Type == TokenTypes.OPERATOR && IF.Val == "if")) {
-            throw this.Error("Expecting if statement!");
+            this.ErrorAndStore("Expecting if statement!", IF);
         }
         this.ParseIf();
         let read = this.Read();
@@ -217,7 +244,7 @@ class Operations {
     }
 
     ParseIf() { // single scope
-        // console.log("parsing if");
+        //console.log("parsing if");
         this.RequireSymbol("(");
         this.ParseExpression();
         this.RequireSymbol(")");
@@ -249,7 +276,7 @@ class Operations {
                 this.tokendependencies.push(tok);
                 returningTokens.push(tok);
                 if(key.Type != TokenTypes.KEYWORD) {
-                    throw this.Error("Expecting a function parameter!");
+                    this.ErrorAndStore("Expecting a function parameter!", key);
                 }
                 const next = this.Read();
                 
@@ -317,7 +344,7 @@ class Operations {
     }
 
     ParseExpression() {
-        // console.log("parsing expression");
+        //console.log("parsing expression");
         return this.Parse("ParseCombiners", ["plant", "p", "+=", "-=", "*=", "/=", "%="], (next, a) => {
             if(next.Val == "++" || next.Val == "--") {
                 return false; // end expression
@@ -331,27 +358,27 @@ class Operations {
         });
     }
     ParseCombiners() {
-        // console.log("parsing combiners");
+        //console.log("parsing combiners");
         return this.Parse("ParseComparators", ["&&", "||"]);
     }
 
     ParseComparators() {
-        // console.log("parsing comparators");
+        //console.log("parsing comparators");
         return this.Parse("ParseTerms", ["==", ">=", "<=", ">", "<", "!="]);
     }
 
     ParseTerms() {
-        // console.log("parsing terms");
+        //console.log("parsing terms");
         return this.Parse("ParseFactors", ["+", "-"]);
     }
 
     ParseFactors() {
-        // console.log("parsing factors");
+        //console.log("parsing factors");
         return this.Parse("ParseNegatives", ["*", "/", "%"]);
     }
 
     ParseNegatives() {
-        // console.log("parsing negatives");
+        //console.log("parsing negatives");
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "-" || returned.Val == "!") {
@@ -363,7 +390,7 @@ class Operations {
     }
     
     ParseCalls(acceptParens = true) {
-        // console.log("parsing calls");
+        //console.log("parsing calls");
         
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
@@ -431,7 +458,7 @@ class Operations {
     }
 
     ParseLowest() {
-        // console.log("parsing lowest");
+        //console.log("parsing lowest");
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "dig" || returned.Val == "d") {
@@ -446,6 +473,11 @@ class Operations {
                     next = this.Read();
                 }
                 if(next.Type == TokenTypes.KEYWORD && next.Val != "this" && next.Val != "super" && next.Val != "prototype") { // can't declare a variable named "this"
+                    for(const _vari of this.cs.vars) {
+                        if(_vari.inner.label == next.Val) {
+                            this.ErrorAndStore(`Cannot declare variable '${next.Val}' more than once in the same scope!`, next, true);
+                        }
+                    }
                     this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null));
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
@@ -458,54 +490,54 @@ class Operations {
                                 break;
                             }
                             if(newType.Type != TokenTypes.OPERATOR) {
-                                throw this.Error(`Expecting plant or harvest function instead of ${newType.Val}!`);
-                            }
-                            this.RequireSymbol("{");
-                            //console.log("aaa");
-                            if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
-                                //console.log('correct value');
-                                const prevFun = this.currentFun;
-                                const _cs = this.ParseScope(false, true);
-                                this.currentFun = prevFun;
-                                if(newType.Val == "plant" || newType.Val == "p") {
-                                    _cs.addVar(new Variable("input", CompletionItemKind.Variable, "[variable]"));
-                                    this.currentInt++;
-                                }
-                                const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
-                                this.currentInt++;
-                                const _super = new Variable("super", CompletionItemKind.Variable, "[variable]");
-                                this.currentInt++;
-                                _super.ignore = true;
-                                _this.ignore = true;
-                                _cs.vars.push(_this);
-                                _cs.vars.push(_super);
-                                if(this.currentthis !== null) {
-                                    this.dependencies.push(new Dependency(
-                                        new ReturnType(ReturnType.Reference, "", ["this"]), 
-                                        _cs, 
-                                        new ReturnType(CompletionItemKind.Variable, "[object reference]", [], this.currentthis.properties, this.currentthis.inherited)
-                                    ));
-                                    if(next.Val == "constructor") {
-                                        this.dependencies.push(new Dependency(
-                                            new ReturnType(ReturnType.Reference, "", ["super"]), 
-                                            _cs, 
-                                            new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
-                                        ));
-                                    }
-                                }
+                                this.ErrorAndStore(`Expecting plant or harvest function instead of ${newType.Val}!`, newType, true); // reread because this error is likely to be redundant
                             } else {
-                                throw this.Error("Only plant and harvest functions are valid in this context!");
+                                this.RequireSymbol("{");
+                                //console.log("aaa");
+                                if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
+                                    //console.log('correct value');
+                                    const prevFun = this.currentFun;
+                                    const _cs = this.ParseScope(false, true);
+                                    this.currentFun = prevFun;
+                                    if(newType.Val == "plant" || newType.Val == "p") {
+                                        _cs.addVar(new Variable("input", CompletionItemKind.Variable, "[variable]"));
+                                        this.currentInt++;
+                                    }
+                                    const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
+                                    this.currentInt++;
+                                    const _super = new Variable("super", CompletionItemKind.Variable, "[variable]");
+                                    this.currentInt++;
+                                    _super.ignore = true;
+                                    _this.ignore = true;
+                                    _cs.vars.push(_this);
+                                    _cs.vars.push(_super);
+                                    if(this.currentthis !== null) {
+                                        this.dependencies.push(new Dependency(
+                                            new ReturnType(ReturnType.Reference, "", ["this"]), 
+                                            _cs, 
+                                            new ReturnType(CompletionItemKind.Variable, "[object reference]", [], this.currentthis.properties, this.currentthis.inherited)
+                                        ));
+                                        if(next.Val == "constructor") {
+                                            this.dependencies.push(new Dependency(
+                                                new ReturnType(ReturnType.Reference, "", ["super"]), 
+                                                _cs, 
+                                                new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
+                                            ));
+                                        }
+                                    }
+                                    this.RequireSymbol("}");
+                                } else {
+                                    this.ErrorAndStore("Only plant and harvest functions are valid in this context!", newType, true); // also likely to be redundant
+                                }
                             }
-                            this.RequireSymbol("}");
                         }
                         this.RequireSymbol("}");
                     } else {
                         this.Stored = afterNext;
                     }
-                    // console.log("adding var");
+                    //console.log("adding var");
                     
-                    const newvar = new Variable(next.Val, CompletionItemKind.Variable);
-                    newvar.inner.detail = "[variable]";
+                    const newvar = new Variable(next.Val, CompletionItemKind.Variable, "[variable]");
                     if(doc !== null && doc.Val.length > 2) {
                         const parsed = parseDoc(doc);
                         newvar.inner.documentation = parsed[0];
@@ -515,16 +547,12 @@ class Operations {
                         newvar.evaluated = true;
                     }
                     newvar.isStatic = _static;
-                    for(const _vari of this.cs.vars) {
-                        if(_vari.inner.label == newvar.inner.label) {
-                            throw this.Error(`Cannot declare variable '${newvar.inner.label}' more than once in the same scope!`);
-                        }
-                    }
+                    
                     this.cs.addVar(newvar);
                     this.currentInt++;
                     return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
                 }
-                throw this.Error(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`);
+                this.ErrorAndStore(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`, next);
             }
             if(returned.Val == "tool" || returned.Val == "t") {
                 const startline = this.Row;
@@ -683,7 +711,8 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Variable, "[object]", [], cs.vars);
             }
         }
-        throw this.Error(`Could not parse value: ${returned.Val}`);
+        this.ErrorAndStore(`Could not parse value: ${returned.Val}`, returned, true);
+        return new ReturnType(CompletionItemKind.Variable); // nothing
     }
 }
 module.exports = Operations;

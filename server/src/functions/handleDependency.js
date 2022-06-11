@@ -99,7 +99,7 @@ const handleDependency = (dep) => {
                             exporting.dep(realSuper, newprop);
                         }
                         realSuper.inherited = _super.inherited;
-                        realSuper.inner.detail = _super.inner.detail;
+                        realSuper.inner.detail = _super.inner.detail.length == 0 ? "[variable]" : _super.inner.detail;
                         for(const _dep of realSuper.deps) {
                             handleDependency(_dep);
                         }
@@ -124,8 +124,13 @@ const handleDependency = (dep) => {
         foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
         exporting.dep(foundTarget, prop);
     }
-    foundTarget.inner.detail = foundSet.inner.detail;
-    
+    if(foundSet.inner.detail.length == 0) {
+        if(foundTarget.inner.detail.length == 0) {
+            foundTarget.inner.detail = '[variable]';
+        }
+    } else {
+        foundTarget.inner.detail = foundSet.inner.detail;
+    }
     foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
     if(foundSet.inner.returns !== null) {
         foundTarget.inner.returns = foundSet.inner.returns;

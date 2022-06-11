@@ -8,7 +8,8 @@ const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = nul
     if(imported !== null) {
         return [imported];
     }
-    //console.log(raw);console.log(ref);
+    //console.log(raw);
+    //console.log(ref);
     let _inherited = null;
     if(inherited !== null) {
         //console.log('inheriting');

@@ -16,7 +16,7 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         return null;
     }
     for(const zone of noHoverZones) {
-        console.log(position);
+        //console.log(position);
         if(isInScope(position, zone, 1)) {
             return null;
         }

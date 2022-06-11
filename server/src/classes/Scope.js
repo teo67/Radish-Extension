@@ -18,9 +18,10 @@ class Scope {
     end(line, char) {
         this.endline = line;
         this.endchar = char;
-        if(this.unusedchar != -1 && this.unusedline != -1) {
-            console.log('ending');
-            global.currentOperator.unusedAreas.push({
+        if(this.unusedline != -1) {
+            //console.log('ending');
+            //console.log(this.unusedchar - 1);
+            global.currentOperator.diagnostics.push({
                 severity: global.server2.DiagnosticSeverity.Hint,
                 range: {
                     start: {
@@ -47,9 +48,11 @@ class Scope {
         }
     }
     markUnused(line, char) {
-        console.log('marking unused!');
-        this.unusedline = line;
-        this.unusedchar = char;
+        //console.log('marking unused!');
+        if(this.unusedline == -1) {
+            this.unusedline = line;
+            this.unusedchar = char;
+        }
     }
 }
 module.exports = Scope;
