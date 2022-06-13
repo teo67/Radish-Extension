@@ -10,7 +10,7 @@ class CountingReader {
         return this.index >= this.file._content.length;
     }
     Peek() {
-        //console.log(this.file);
+        
         return this.file._content[this.index];
     }
     Read() {
@@ -27,9 +27,6 @@ class CountingReader {
         }
         this.index++;
         return returning;
-    }
-    Error(msg, row = this.row, col = this.col) {
-        return new RadishException(msg, row, col);
     }
 }
 

@@ -17,13 +17,13 @@ const hover = new Response(params => {
         line: params.position.line, 
         character: params.position.character + 1 // for some reason the position given is off
     };
-    //console.log(realPosition);
+    
     const returned = getobj(stored.ref, stored.noHoverZones, realPosition, true);
-    //console.log(returned);
+    
     if(returned === null) {
         return null;
     }
-    //console.log("stage 2");
+    
     const all = getResults(cs, realPosition, returned[0], returned[1]);
     let final = null;
     if(returned[0][0] == "()") {
@@ -55,12 +55,16 @@ const hover = new Response(params => {
     }
     val += `  
     \`\`\`${final.detail}\`\`\`  
-    ${final.documentation}`;
-    if(final.returns !== null) {
-        //console.log("yes");
-        val += `**returns** \`\`\`${final.returns.inner.detail}\`\`\``;
+    `;
+    if(final.documentation.length > 0) {
+        val += `${final.documentation}  
+        `;
     }
-    //console.log(val);
+    if(final.returns !== null) {
+        
+        val += `**returns**\`\`\`${final.returns.inner.detail}\`\`\``;
+    }
+    
     return {
         contents: {
             kind: server2.MarkupKind.Markdown, 

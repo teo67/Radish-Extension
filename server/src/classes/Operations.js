@@ -15,13 +15,15 @@ class Dependency {
     }
 }
 class TokenDependency {
-    constructor(_lines, _chars, _path, _reference, _baseScope, _before = []) {
+    constructor(_lines, _chars, _path, _reference, _baseScope, _isDeclarationIfSoWhatsThis = null, _before = []) {
         this.lines = _lines;
         this.chars = _chars;
         this.path = _path;
         this.reference = _reference;
         this.baseScope = _baseScope;
         this.before = _before;
+        this.isDeclarationIfSoWhatsThis = _isDeclarationIfSoWhatsThis; // only used to decide which variables to analyze as used only once
+        // null: not declaration, false: no scope, true: scope
     }
 }
 class Operations {
@@ -40,6 +42,10 @@ class Operations {
         this.noHoverZones = [];
         this.diagnostics = [];
         this.constructordependencies = [];
+        this.lastTrim = {
+            line: 0, 
+            character: 0
+        };
         this.path = reader.file.uri.slice(0, reader.file.uri.lastIndexOf("/"));
     }
 
@@ -54,7 +60,7 @@ class Operations {
         this.constructordependencies = [];
     }
 
-    AddDiagnostic(message, start, end = {
+    AddDiagnostic(message, start = this.lastTrim, end = {
         line: this.Row - 1, 
         character: this.Col - 1
     }) {
@@ -70,29 +76,12 @@ class Operations {
         });
     }
 
-    ErrorAndStore(message, read, nostore = false) {
-        this.AddDiagnostic(message, {
-            line: this.Row - 1, 
-            character: this.Col - 1 - read.Val.length
-        });
-        if(nostore) {
-            return;
-        }
-        this.Stored = read;
-    }
-
     RequireSymbol(input) {
         const next = this.Read();
         if(!(next.Type == TokenTypes.SYMBOL && next.Val == input)) {
-            this.ErrorAndStore(`Error: expected symbol: ${input}`, next);
+            this.AddDiagnostic(`Error: expected symbol: ${input}`);
+            this.Stored = next;
         }
-    }
-
-    Error(input) {
-        if(this.Stored == null) {
-            return this.reader.Error(input);
-        }
-        return this.reader.Error(input, this.PrevRow, this.PrevCol);        
     }
 
     get Row() {
@@ -110,28 +99,17 @@ class Operations {
     }
 
     Read() {
-        //Print("reading");
         if(this.Stored != null) {
             const saved = this.Stored;
             this.Stored = null;
-            //Print(saved.Val);
             return saved;
         }
         this.PrevCol = this.reader.col;
         this.PrevRow = this.reader.row;
-        let ran = lex(this.reader);
-        if(ran.Type != TokenTypes.SEMIS) {
-            this.currentDocs = null; 
-        }
-        while(ran.Type == TokenTypes.SEMIS) {
-            this.currentDocs = ran;
-            ran = lex(this.reader);
-        }
-        //Print(ran.Val);
-        return ran;
+        return lex(this.reader);
     }
     ParseScope(setthis = false, setfun = false) { //returns scope
-        //console.log("parsing scope");
+        
         const saved = this.cs;
         const newscope = new Scope(this.Row, this.Col, this.cs);
         this.cs = newscope;
@@ -164,7 +142,9 @@ class Operations {
                 });
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "cancel" || read.Val == "continue" || read.Val == "end")) {
                 // nothing to do here
-                this.cs.markUnused(this.Row, this.Col);
+                const after = this.Read();
+                this.cs.markUnused(this.lastTrim);
+                this.Stored = after;
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "harvest" || read.Val == "h")) {
                 const ret = this.ParseExpression();
                 let fun = this.currentFun;
@@ -174,12 +154,14 @@ class Operations {
                         currentcs = currentcs.enclosing;
                     }
                     fun = currentcs;
-                    //console.log(fun);
+                    
                 }
                 const return1 = new ReturnType(ReturnType.Reference, "", ["()"], null, null, fun);
                 this.dependencies.push(new Dependency(return1, this.cs, ret));
-
-                this.cs.markUnused(this.Row, this.Col);
+            
+                const after = this.Read();
+                this.cs.markUnused(this.lastTrim);
+                this.Stored = after;
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "try") {
                 this.RequireSymbol("{");
                 this.ParseScope();
@@ -190,7 +172,8 @@ class Operations {
                     this.ParseScope();
                     this.RequireSymbol("}");
                 } else {
-                    this.ErrorAndStore("Expecting catch phrase after try {}", next);
+                    this.AddDiagnostic("Expecting catch phrase after try {}");
+                    this.Stored = next;
                 }
             } else {
                 this.Stored = read;
@@ -223,10 +206,10 @@ class Operations {
     }
 
     ParseIfs() {
-        //console.log("parsing ifs");
         const IF = this.Read();
         if(!(IF.Type == TokenTypes.OPERATOR && IF.Val == "if")) {
-            this.ErrorAndStore("Expecting if statement!", IF);
+            this.AddDiagnostic("Expecting if statement!");
+            this.Stored = IF;
         }
         this.ParseIf();
         let read = this.Read();
@@ -244,7 +227,7 @@ class Operations {
     }
 
     ParseIf() { // single scope
-        //console.log("parsing if");
+        
         this.RequireSymbol("(");
         this.ParseExpression();
         this.RequireSymbol(")");
@@ -270,34 +253,36 @@ class Operations {
             this.Stored = read;
             if(params) {
                 const doc = this.currentDocs;
-                let key = this.Read();
-                const newvar = new Variable(key.Val, CompletionItemKind.Field);
-                const tok = new TokenDependency([this.Row], [this.Col - key.Val.length], [key.Val], null, null)
-                this.tokendependencies.push(tok);
-                returningTokens.push(tok);
+                const key = this.Read();
                 if(key.Type != TokenTypes.KEYWORD) {
-                    this.ErrorAndStore("Expecting a function parameter!", key);
-                }
-                const next = this.Read();
-                
-                
-                let isOptional = false;
-                if(next.Val == "plant" || next.Val == "p") {
-                    this.ParseExpression();
-                    isOptional = true;
+                    this.AddDiagnostic("Expecting a function parameter!");
                 } else {
-                    this.Stored = next;
+                    const newvar = new Variable(key.Val, CompletionItemKind.Field);
+                    const tok = new TokenDependency([this.Row], [this.Col - key.Val.length], [key.Val], null, null, false)
+                    this.tokendependencies.push(tok);
+                    returningTokens.push(tok);
+                    
+                    const next = this.Read();
+                    
+                    
+                    let isOptional = false;
+                    if(next.Val == "plant" || next.Val == "p") {
+                        this.ParseExpression();
+                        isOptional = true;
+                    } else {
+                        this.Stored = next;
+                    }
+                    newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
+                    if(doc !== null && doc.length > 2) {
+                        const parsed = parseDoc(doc);
+                        newvar.inner.documentation = parsed[0];
+                        newvar.inner.params = parsed[1];
+                    }
+                    
+                    returning.push(newvar);
+                    returningString.push(isOptional ? (key.Val + "?") : key.Val);
+                    this.currentInt++;
                 }
-                newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
-                if(doc !== null && doc.Val.length > 2) {
-                    const parsed = parseDoc(doc);
-                    newvar.inner.documentation = parsed[0];
-                    newvar.inner.params = parsed[1];
-                }
-                
-                returning.push(newvar);
-                returningString.push(isOptional ? (key.Val + "?") : key.Val);
-                this.currentInt++;
             } else {
                 this.ParseExpression();
             }
@@ -344,7 +329,7 @@ class Operations {
     }
 
     ParseExpression() {
-        //console.log("parsing expression");
+        
         return this.Parse("ParseCombiners", ["plant", "p", "+=", "-=", "*=", "/=", "%="], (next, a) => {
             if(next.Val == "++" || next.Val == "--") {
                 return false; // end expression
@@ -358,27 +343,22 @@ class Operations {
         });
     }
     ParseCombiners() {
-        //console.log("parsing combiners");
         return this.Parse("ParseComparators", ["&&", "||"]);
     }
 
     ParseComparators() {
-        //console.log("parsing comparators");
         return this.Parse("ParseTerms", ["==", ">=", "<=", ">", "<", "!="]);
     }
 
     ParseTerms() {
-        //console.log("parsing terms");
         return this.Parse("ParseFactors", ["+", "-"]);
     }
 
     ParseFactors() {
-        //console.log("parsing factors");
         return this.Parse("ParseNegatives", ["*", "/", "%"]);
     }
 
     ParseNegatives() {
-        //console.log("parsing negatives");
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "-" || returned.Val == "!") {
@@ -390,8 +370,6 @@ class Operations {
     }
     
     ParseCalls(acceptParens = true) {
-        //console.log("parsing calls");
-        
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
         const returned = this.ParseLowest();
@@ -444,7 +422,7 @@ class Operations {
         }
         
         if(returning.length > 0) {
-            this.tokendependencies.push(new TokenDependency(startlines, startchars, returning, this.cs, returned.baseScope, returned.raw)); // make it so it doesnt include previous stuff
+            this.tokendependencies.push(new TokenDependency(startlines, startchars, returning, this.cs, returned.baseScope, null, returned.raw)); // make it so it doesnt include previous stuff
         }
 
         if(isUnknown) {
@@ -458,7 +436,6 @@ class Operations {
     }
 
     ParseLowest() {
-        //console.log("parsing lowest");
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "dig" || returned.Val == "d") {
@@ -475,13 +452,13 @@ class Operations {
                 if(next.Type == TokenTypes.KEYWORD && next.Val != "this" && next.Val != "super" && next.Val != "prototype") { // can't declare a variable named "this"
                     for(const _vari of this.cs.vars) {
                         if(_vari.inner.label == next.Val) {
-                            this.ErrorAndStore(`Cannot declare variable '${next.Val}' more than once in the same scope!`, next, true);
+                            this.AddDiagnostic(`Cannot declare variable '${next.Val}' more than once in the same scope!`);
                         }
                     }
-                    this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null));
+                    this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, this.currentthis === null ? false : true));
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
-                        //console.log("getter/setter");
+                        
                         prop = true;
                         for(let i = 0; i < 2; i++) {
                             const newType = this.Read();
@@ -490,12 +467,12 @@ class Operations {
                                 break;
                             }
                             if(newType.Type != TokenTypes.OPERATOR) {
-                                this.ErrorAndStore(`Expecting plant or harvest function instead of ${newType.Val}!`, newType, true); // reread because this error is likely to be redundant
+                                this.AddDiagnostic(`Expecting plant or harvest function instead of ${newType.Val}!`);
                             } else {
                                 this.RequireSymbol("{");
-                                //console.log("aaa");
+                                
                                 if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
-                                    //console.log('correct value');
+                                    
                                     const prevFun = this.currentFun;
                                     const _cs = this.ParseScope(false, true);
                                     this.currentFun = prevFun;
@@ -527,7 +504,7 @@ class Operations {
                                     }
                                     this.RequireSymbol("}");
                                 } else {
-                                    this.ErrorAndStore("Only plant and harvest functions are valid in this context!", newType, true); // also likely to be redundant
+                                    this.AddDiagnostic("Only plant and harvest functions are valid in this context!"); // also likely to be redundant
                                 }
                             }
                         }
@@ -535,10 +512,10 @@ class Operations {
                     } else {
                         this.Stored = afterNext;
                     }
-                    //console.log("adding var");
+                    
                     
                     const newvar = new Variable(next.Val, CompletionItemKind.Variable, "[variable]");
-                    if(doc !== null && doc.Val.length > 2) {
+                    if(doc !== null && doc.length > 2) {
                         const parsed = parseDoc(doc);
                         newvar.inner.documentation = parsed[0];
                         newvar.inner.params = parsed[1];
@@ -552,14 +529,15 @@ class Operations {
                     this.currentInt++;
                     return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
                 }
-                this.ErrorAndStore(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`, next);
+                this.AddDiagnostic(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`);
+                this.Stored = next;
             }
             if(returned.Val == "tool" || returned.Val == "t") {
                 const startline = this.Row;
                 const startchar = this.Col;
                 this.RequireSymbol("(");
                 const params = this.ParseLi(true);
-                //console.log(params);
+                
                 this.RequireSymbol(")");
                 this.RequireSymbol("{");
                 const previousFun = this.currentFun;
@@ -578,7 +556,7 @@ class Operations {
                 desc += " }";
                 for(const token of params.tokens) {
                     token.reference = _cs;
-                    //console.log(token);
+                    
                 }
                 _cs.vars = _cs.vars.concat(params.vars);
                 const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
@@ -630,11 +608,11 @@ class Operations {
                     if(!val.endsWith(".rdsh")) {
                         path += ".rdsh";
                     }
-                    //console.log(path);
-                    //console.log(cached);
+                    
+                    
                     const cache = cached[path];
                     if(cache !== undefined) {
-                        //console.log(cache.cs.returns);
+                        
                         return new ReturnType(ReturnType.Reference, "[import]", [], null, null, null, cache.cs.returns);
                     }
                 }
@@ -711,7 +689,7 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Variable, "[object]", [], cs.vars);
             }
         }
-        this.ErrorAndStore(`Could not parse value: ${returned.Val}`, returned, true);
+        this.AddDiagnostic(returned.Val.length > 0 ? `Could not parse value: ${returned.Val}` : 'Expected another token!');
         return new ReturnType(CompletionItemKind.Variable); // nothing
     }
 }

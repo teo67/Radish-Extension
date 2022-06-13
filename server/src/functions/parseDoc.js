@@ -5,7 +5,7 @@ const states = {
 };
 
 module.exports = doc => {
-    const old = doc.Val.substring(1, doc.Val.length - 1);
+    const old = doc.substring(1, doc.length - 1);
     let edited = '';
     let params = {};
     let paramDocs = '';

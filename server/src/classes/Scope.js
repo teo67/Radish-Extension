@@ -12,22 +12,16 @@ class Scope {
         this.isthis = _isthis;
         this.returns = null;
 
-        this.unusedchar = -1;
-        this.unusedline = -1;
+        this.unused = null;
     }
     end(line, char) {
         this.endline = line;
         this.endchar = char;
-        if(this.unusedline != -1) {
-            //console.log('ending');
-            //console.log(this.unusedchar - 1);
+        if(this.unused !== null && !(this.unused.line == this.endline - 1 && this.unused.character == this.endchar - 1)) {
             global.currentOperator.diagnostics.push({
                 severity: global.server2.DiagnosticSeverity.Hint,
                 range: {
-                    start: {
-                        line: this.unusedline - 1, 
-                        character: this.unusedchar - 1
-                    }, 
+                    start: this.unused, 
                     end: {
                         line: this.endline - 1, 
                         character: this.endchar - 1
@@ -47,11 +41,9 @@ class Scope {
             this.vars.push(vari);
         }
     }
-    markUnused(line, char) {
-        //console.log('marking unused!');
-        if(this.unusedline == -1) {
-            this.unusedline = line;
-            this.unusedchar = char;
+    markUnused(position) {
+        if(this.unused === null) {
+            this.unused = position;
         }
     }
 }

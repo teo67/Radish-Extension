@@ -7,41 +7,41 @@ const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
 const ReturnType = require('../classes/returnType.js');
 const handleDependency = (dep) => {
-    //console.log('started: ' + `dep ${dep.target.raw}, ${dep.find.raw}`);
-    //console.log(dep.target.raw);
+    
+    
     if(dep.handled) {
         return; // this could save some time
     }
-    //console.log(`dep ${dep.target.raw}, ${dep.find.raw}`)
-    //console.log('passing');
+    
+    
     const found = passInRT(dep, dep.target, true);
     
     if(found === null) { // no var or failed somewhere
-        //console.log("not found")
+        
         return;
     }
-    //console.log("found = " + found[0].evaluated);
-    //console.log("length = " + found.length);
-    //console.log("foundtarget = " + found[found.length - 1]);
+    
+    
+    
     const foundTarget = found[found.length - 1];
     if(foundTarget.evaluated) { // already eval'd
-        //console.log("already evaluated")
+        
         return;
     }
-    //console.log("found target successfully");
+    
     let foundSet = passInRT(dep, dep.find);
     if(foundSet === null) {
-        //console.log("no set");
+        
         return;
     }
     if(!checkVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc
-        //console.log('set cancel');
+        
         return;
     }
-    //console.log("found!");
+    
     foundSet = foundSet[foundSet.length - 1];
 
-    //console.log(`made it past everything on ${dep.target.raw}`);
+    
     if(dep.find.type == CompletionItemKind.Class) {
         const construct = findInVariable("constructor", foundSet.properties, null);
         if(construct !== null) { // this should pretty much always be true
@@ -61,14 +61,14 @@ const handleDependency = (dep) => {
             exporting.dep(foundSet, proto);
         }
         for(const newprop of saved.properties) {
-            //console.log(newprop);
+            
             if(newprop.isStatic) {
                 foundSet.properties.push(newprop);
                 exporting.dep(foundSet, newprop);
             } else {
                 proto.properties.push(newprop);
                 exporting.dep(proto, newprop);
-                //console.log(newprop.inner.label);
+                
             }
         }
         
@@ -77,7 +77,7 @@ const handleDependency = (dep) => {
     if(dep.find.linkedscope !== null) {
         if(found.length > 1) {
             const _this = findInScope("this", dep.find.linkedscope);
-            //console.log("this!!");
+            
             if(_this !== null) {
                 const _super = found[found.length - 2].inherited !== null ? findInVariable("constructor", found[found.length - 2].inherited.properties, null) : null;
                 if(_super !== null && !checkVar(_super, dep)) { // if there is a constructor but it isn't evaluated, save it
@@ -117,8 +117,8 @@ const handleDependency = (dep) => {
             _super.evaluated = true; // cancel all possible deps on super, we're not gonna use it
         }
     } 
-    //console.log('success: ' + `dep ${dep.target.raw}, ${dep.find.raw}`);
-    //console.log("found set successfully");
+    
+    
     foundTarget.inherited = foundSet.inherited;
     for(const prop of foundSet.properties) {
         foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
@@ -141,9 +141,9 @@ const handleDependency = (dep) => {
     foundTarget.ignore = false;
     foundTarget.evaluated = true;
     dep.handled = true;
-    //console.log("about to run deps");
+    
     for(const dep of foundTarget.deps) {
-        //console.log("running dep: " + dep.target.raw);
+        
         handleDependency(dep);
     }
     

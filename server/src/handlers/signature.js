@@ -40,7 +40,7 @@ const signature = new Response(s => {
     if(stored.ref._lineOffsets === undefined || stored.ref._content === undefined) {
         return default1;
     }
-    //console.log(document);
+    
     let index = stored.ref._lineOffsets[s.position.line] + s.position.character - 1;
     const positionCopy = {
         line: s.position.line, 
@@ -71,7 +71,7 @@ const signature = new Response(s => {
     }
     positionCopy.character--; // this always works because the last character must be ( and therefore cannot be a newline
     const returned = getobj(stored.ref, stored.noHoverZones, positionCopy);
-    //console.log(returned);
+    
     if(returned === null) {
         return default1;
     }
@@ -108,7 +108,7 @@ const signature = new Response(s => {
             current += paramstring[i];
         }
     }
-    //console.log(final.params);
+    
     return {
         signatures: [
             {

@@ -64,32 +64,20 @@ const assess = new Response(async document => {
     if(global.cached[document.uri] !== undefined && global.cached[document.uri].stamp == version2) {
         return null;
     }
-    //console.log("running " + document.getText());
-    //console.log(document._content);
     const ops = new Operations(new Reader(document));
     global.currentOperator = ops;
     let returning = null;
     ops.ParseScope();
-    console.log(ops.dependencies);
     global.cached[document.uri].cs = ops.cs;
     global.cached[document.uri].noHoverZones = ops.noHoverZones;
-
     for(const dep of ops.dependencies) {
-        //console.log("dep");
         handleDependency(dep);
     }
     for(const dep of ops.constructordependencies) {
         handleConstDep(dep);
     }
     global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
-    //console.log(global.cached[document.uri].tokens);
-    //console.log(printInDetail(ops.cs, 0));
-    //console.log(ops.dependencies);
-    //console.log(ops.cs);
-    //console.log(ops.noHoverZones);
-    //console.log(ops.diagnostics);
     returning = { uri: document.uri, diagnostics: ops.diagnostics };
-    //console.log('aaaa')
     global.currentOperator = null;
     ops.CleanUp();
     global.cached[document.uri].stamp = version2;

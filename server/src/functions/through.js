@@ -6,7 +6,7 @@ const through = (scope, position, list = true) => {
         if(!isInScope(position, inner)) {
             continue;
         }
-        //console.log("going to inner scope");
+        
         if(!list) {
             return through(inner, position, false);
         }

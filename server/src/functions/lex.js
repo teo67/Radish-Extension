@@ -86,8 +86,6 @@ const getTokenType = (current, adding, currentRaw) => { // same = no change
             return TokenTypes.SYMBOL;
         case CharTypes.operators:
             return (current == TokenTypes.OPERATOR) ? TokenTypes.SAME : TokenTypes.OPERATOR;
-        default:
-            throw new Error("Something went wrong in the lex phase.");
     }
 }
 
@@ -110,13 +108,41 @@ const convert = (current, currentRaw) => {
     return new LexEntry(current, currentRaw);
 }
 
-const run = reader => {
+const resolve = (current, currentRaw, startPos, reader) => {
+    const savedline = startPos.line;
+    const savedcol = startPos.character;
+    startPos.line = reader.row;
+    startPos.character = reader.col;
+    if(savedline && savedcol && (current == TokenTypes.COMMENT || current == TokenTypes.SEMIS)) {
+        global.currentOperator.noHoverZones.push({
+            startline: savedline, 
+            startchar: savedcol + 1,
+            endline: startPos.line, 
+            endchar: startPos.character - 1
+        });
+    }
+
+    if([TokenTypes.SEMIS, TokenTypes.NONE, TokenTypes.COMMENT].includes(current)) {
+        if(current == TokenTypes.SEMIS) {
+            global.currentOperator.currentDocs = currentRaw;
+        }
+        global.currentOperator.lastTrim = {
+            line: startPos.line - 1, 
+            character: startPos.character - 1
+        };
+        return false;
+    }
+    return convert(current, currentRaw);
+}
+
+const run = (reader) => {
+    global.currentOperator.currentDocs = null;
     if(reader.EndOfStream) {
         return new LexEntry(TokenTypes.ENDOFFILE, "");
     }
     let currentRaw = "";
     let current = TokenTypes.NONE;
-    let startPos = null;
+    const startPos = {};
     do {
         const read = reader.Peek();
         const newToken = getTokenType(current, getCharType(read), currentRaw);
@@ -124,32 +150,20 @@ const run = reader => {
             reader.Read();
             currentRaw += read;
         } else {
-            if(current != TokenTypes.COMMENT && current != TokenTypes.NONE) {
-                return convert(current, currentRaw);
-            }
-            const saved = startPos;
-            startPos = {
-                line: reader.row, 
-                character: reader.col
-            };
-            if(saved !== null && (current == TokenTypes.COMMENT || current == TokenTypes.SEMIS)) {
-                global.currentOperator.noHoverZones.push({
-                    startline: saved.line, 
-                    startchar: saved.character + 1,
-                    endline: startPos.line, 
-                    endchar: startPos.character - 1
-                });
+            const resolved = resolve(current, currentRaw, startPos, reader);
+            if(resolved) {
+                return resolved;
             }
             reader.Read();
-            
             current = newToken;
             currentRaw = read;
         }
     } while(!reader.EndOfStream);
-    if(current == TokenTypes.COMMENT || current == TokenTypes.NONE) {
-        return new LexEntry(TokenTypes.ENDOFFILE, "");
+    const resolved = resolve(current, currentRaw, startPos, reader);
+    if(resolved) {
+        return resolved;
     }
-    return convert(current, currentRaw);
+    return new LexEntry(TokenTypes.ENDOFFILE, "");
 }
 
 module.exports = run;

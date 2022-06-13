@@ -16,7 +16,6 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         return null;
     }
     for(const zone of noHoverZones) {
-        //console.log(position);
         if(isInScope(position, zone, 1)) {
             return null;
         }
@@ -26,7 +25,7 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         character: position.character
     };
     let currentIndex = document._lineOffsets[position.line] + position.character - 1;
-    if(isHovering && whitespace.includes(document._content[currentIndex])) {
+    if(isHovering && !work.includes(document._content[currentIndex])) {
         return null;
     }
     let returning = [];
@@ -42,7 +41,7 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
     let requireDot = false;
     let inParens = 0;
     while(currentIndex >= 0) {
-        //console.log("beginning cycle");
+        
         if(inParens > 0) {
             if(document._content[currentIndex] == ')') {
                 inParens++;
@@ -55,7 +54,7 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
             }
         } else if(document._content[currentIndex] == '.') {
             returning.push(current);
-            //console.log("dot");
+            
             current = '';
             requireDot = false;
         } else if(document._content[currentIndex] == ')' && current == '') {
@@ -63,7 +62,7 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         } else {
             const saved = document._content[currentIndex];
             if(whitespace.includes(saved)) {
-                //console.log("whitespace");
+                
                 if(current != '') {
                     requireDot = true;
                 }
@@ -72,14 +71,14 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
                 //     continue;
                 // }
             } else if(requireDot) {
-                //console.log("no dot found");
+                
                 break;
             } else if(work.includes(saved)) {
-                //console.log("pushing to current");
+                
                 current = saved + current;
             } else {
                 if(saved == '}' && current == '') {
-                    //console.log("ending with a }");
+                    
                     current = '}';
                 }
                 break;
@@ -89,13 +88,13 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         positionCopy.character--;
         if(positionCopy.character == -1) {
             positionCopy.line--;
-            //console.log(document._lineOffsets);
+            
             positionCopy.character = document._lineOffsets[positionCopy.line + 1] - document._lineOffsets[positionCopy.line] - 1;
         }
         
-        //console.log(positionCopy);
+        
     }
     returning.push(current);
-    //console.log(returning);
+    
     return [returning, positionCopy];
 }
