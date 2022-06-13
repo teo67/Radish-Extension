@@ -11,7 +11,8 @@ class Response {
             console.log(`Completed ${this.name}!`);
             return returned;
         } catch(e) {
-            console.log(`Response ${this.name} failed!\n${e}`);
+            console.log(`Response ${this.name} failed!`);
+            console.log(e);
             return this.default;
         }
     }

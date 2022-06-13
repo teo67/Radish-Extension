@@ -5,46 +5,35 @@ const findInVariable = require('./findInVariable.js');
 const propertyStuff = require('./propertyStuff.js').run;
 const CompletionItemKind = require('../global.js').server2.CompletionItemKind;
 const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = null, imported = null, detail = "", propertycreation = false, playground) => { // false = cancel
-    if(imported !== null) {
-        return [imported];
-    }
-    
-    
     let _inherited = null;
     if(inherited !== null) {
-        
         _inherited = exporting.dep(inherited, dep, playground);
         if(_inherited === null) {
             return null;
         }
     }
-    
     let currentVar = null;
     let before = [];
     let ignoreFirst = false;
-    if(baseScope === null) { 
-        
+    if(imported !== null) {
+        currentVar = imported;
+    } else if(baseScope === null) { 
         if(raw.length == 0) {
-            
-            
             currentVar = new Variable("", CompletionItemKind.Variable); // return a blank variable
             currentVar.evaluated = true;
             currentVar.inner.detail = detail;
             if(linkedscope !== null) {
-                currentVar.inner.returns = linkedscope.returns;
+                currentVar.returns = linkedscope.returns;
             }
         } else {
-            
             if(linkedscope !== null && raw[0] == "()") {
                 currentVar = linkedscope.returns;
             } else {
-                
                 currentVar = findInScope(raw[0], ref);
             }
             ignoreFirst = true;
         }
     } else {
-        
         currentVar = new Variable("", CompletionItemKind.Variable);
         currentVar.properties = baseScope;
         currentVar.inherited = _inherited;
@@ -63,7 +52,7 @@ const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = nul
             return playground ? before : null;
         }
         before.push(currentVar);
-        currentVar = (raw[i] == "()") ? currentVar.inner.returns : findInVariable(raw[i], currentVar.properties, currentVar.inherited);
+        currentVar = (raw[i] == "()") ? currentVar.returns : findInVariable(raw[i], currentVar.properties, currentVar.inherited);
     }
     if(currentVar === null) {
         if(before.length > 0 && raw.length > 0) {
@@ -85,8 +74,6 @@ const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = nul
         return before;
     }
     before.push(currentVar);
-    
-    
     return before; // object literal: simple variable with only properties, class: var with properties and inherit (optional), "new" object: var with no properties but inherit points to class
     //, a.b.c... -> c
 }

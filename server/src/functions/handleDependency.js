@@ -5,43 +5,37 @@ const Variable = require('../classes/Variable.js');
 const findInScope = require('./findInScope.js');
 const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
-const ReturnType = require('../classes/returnType.js');
+const ReturnType = require('../classes/ReturnType.js');
 const handleDependency = (dep) => {
-    
-    
+    console.log("target:")
+    console.log(dep.target)
+    console.log("find:")
+    console.log(dep.find);
     if(dep.handled) {
+        console.log('already handled')
         return; // this could save some time
     }
-    
-    
     const found = passInRT(dep, dep.target, true);
     
     if(found === null) { // no var or failed somewhere
-        
+        console.log('not found target')
         return;
     }
-    
-    
-    
     const foundTarget = found[found.length - 1];
-    if(foundTarget.evaluated) { // already eval'd
-        
+    if(foundTarget.evaluated && !dep.override) { // already eval'd
+        console.log('already evald')
         return;
     }
-    
     let foundSet = passInRT(dep, dep.find);
-    if(foundSet === null) {
-        
+    if(foundSet === null) { 
+        console.log('not found fin')
         return;
     }
-    if(!checkVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc
-        
+    if(!checkVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc  
+        console.log('find not evald')
         return;
     }
-    
     foundSet = foundSet[foundSet.length - 1];
-
-    
     if(dep.find.type == CompletionItemKind.Class) {
         const construct = findInVariable("constructor", foundSet.properties, null);
         if(construct !== null) { // this should pretty much always be true
@@ -68,7 +62,6 @@ const handleDependency = (dep) => {
             } else {
                 proto.properties.push(newprop);
                 exporting.dep(proto, newprop);
-                
             }
         }
         
@@ -132,8 +125,8 @@ const handleDependency = (dep) => {
         foundTarget.inner.detail = foundSet.inner.detail;
     }
     foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
-    if(foundSet.inner.returns !== null) {
-        foundTarget.inner.returns = foundSet.inner.returns;
+    if(foundSet.returns !== null) {
+        foundTarget.returns = foundSet.returns;
         for(const _dep of foundTarget.returndeps) {
             handleDependency(_dep);
         }
@@ -143,10 +136,8 @@ const handleDependency = (dep) => {
     dep.handled = true;
     
     for(const dep of foundTarget.deps) {
-        
         handleDependency(dep);
     }
-    
     return;
 }
 

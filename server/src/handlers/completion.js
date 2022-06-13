@@ -33,11 +33,15 @@ const completion = new Response(_textDocumentPosition => {
     }
     
     const results = getResults(cs, _textDocumentPosition.position, returned[0], returned[1]);
-    let all = throughVar(results.properties, results.inherited);
+    let all = throughVar(results.properties, results.inherited, vari => {
+        return vari.inner;
+    });
     
     if(returned[0].length == 1) { // only add defaults if we aren't accessing a property
         all = defaults.concat(all);
     }
+
+    console.log(all);
     
     return all;
 }, "completion", []);

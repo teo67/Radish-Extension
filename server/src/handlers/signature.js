@@ -7,7 +7,7 @@ const addToParams = (params, current, final, i) => {
     if(current != '') {
         const realCurrent = current[current.length - 1] == '?' ? current.slice(0, current.length - 1) : current;
         const adding = {
-            label: [final.label.length + 9 + i - current.length, final.label.length + 9 + i], 
+            label: [final.inner.label.length + 9 + i - current.length, final.inner.label.length + 9 + i], 
             documentation: {
                 kind: server2.MarkupKind.Markdown, 
                 value: `parameter name: **${realCurrent}**  
@@ -78,19 +78,19 @@ const signature = new Response(s => {
     const all = getResults(cs, positionCopy, returned[0], returned[1]);
     let final = null;
     if(returned[0][0] == "()") {
-        final = all.returns === null ? null : all.returns.inner;
+        final = all.returns;
     } else {
         const throughd = throughVar(all.properties, all.inherited);
-        for(const inner of throughd) {
-            if(inner.label == returned[0][0]) {
-                final = inner;
+        for(const vari of throughd) {
+            if(vari.inner.label == returned[0][0]) {
+                final = vari;
             }
         }
     }
-    if(final === null || final.detail.substring(0, 6) != '[tool]') {
+    if(final === null || final.inner.detail.substring(0, 6) != '[tool]') {
         return default1;
     }
-    const paramstring = final.detail.substring(8);
+    const paramstring = final.inner.detail.substring(8);
     let params = [];
     let current = '';
     for(let i = 0; i < paramstring.length; i++) {
@@ -112,11 +112,11 @@ const signature = new Response(s => {
     return {
         signatures: [
             {
-                label: `${final.label} ${final.detail}`,
+                label: `${final.inner.label} ${final.inner.detail}`,
                 documentation: {
                     kind: server2.MarkupKind.Markdown, 
-                    value: `tool name: **${final.label}**  
-                    ${final.documentation.length < 1 ? '*No documentation provided.*' : final.documentation}  
+                    value: `tool name: **${final.inner.label}**  
+                    ${final.inner.documentation.length < 1 ? '*No documentation provided.*' : final.inner.documentation}  
                     ${final.returns === null ? '*No explicit return value.*' : `**returns** \`\`\`${final.returns.inner.detail}\`\`\``}`
                 },
                 parameters: params,

@@ -27,20 +27,20 @@ const hover = new Response(params => {
     const all = getResults(cs, realPosition, returned[0], returned[1]);
     let final = null;
     if(returned[0][0] == "()") {
-        final = all.returns === null ? null : all.returns.inner;
+        final = all.returns;
     } else {
         const throughd = throughVar(all.properties, all.inherited);
-        for(const inner of throughd) {
-            if(inner.label == returned[0][0]) {
-                final = inner;
+        for(const vari of throughd) {
+            if(vari.inner.label == returned[0][0]) {
+                final = vari;
             }
         }
     }
     if(final === null) {
         return null;
     }
-    let val = `*${final.label}*`;
-    switch(final.kind) {
+    let val = `*${final.inner.label}*`;
+    switch(final.inner.kind) {
         case server2.CompletionItemKind.Class:
             val += ` (class)`;
             break; 
@@ -54,14 +54,13 @@ const hover = new Response(params => {
             break;
     }
     val += `  
-    \`\`\`${final.detail}\`\`\`  
+    \`\`\`${final.inner.detail}\`\`\`  
     `;
-    if(final.documentation.length > 0) {
-        val += `${final.documentation}  
+    if(final.inner.documentation.length > 0) {
+        val += `${final.inner.documentation}  
         `;
     }
     if(final.returns !== null) {
-        
         val += `**returns**\`\`\`${final.returns.inner.detail}\`\`\``;
     }
     

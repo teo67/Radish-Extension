@@ -35,13 +35,17 @@ const printInDetail = (any, numspaces) => {
             for(const prop of any.properties) {
                 returning += printInDetail(prop, numspaces + 2);
             }
-            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}, ${newindent}  Returns: ${any.inner.returns === null ? "none" : any.inner.returns.inner.label}${newindent}}`;
+            returning += `${newindent}  ], inherited: ${(any.inherited === null) ? "none" : any.inherited.inner.label}, ${newindent}  Returns: ${any.returns === null ? "none" : any.returns.inner.label}${newindent}}`;
         }
         
     }
     return returning;
 }
 const assess = new Response(async document => {
+    //Variable 6
+    //Class 7
+    //Function 3
+    //Field 5
     if(document._lineOffsets === undefined) {
         document.getLineOffsets(); // generate line offsets if they start as undefined
     }

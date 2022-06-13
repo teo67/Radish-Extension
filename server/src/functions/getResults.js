@@ -1,6 +1,5 @@
 const through = require('./through.js');
 const findInVariable = require('./findInVariable.js');
-const throughVar = require('./throughVar.js');
 module.exports = (cs, position, returned, newPosition) => {
     const allvars = through(cs, position);
     
@@ -39,7 +38,7 @@ module.exports = (cs, position, returned, newPosition) => {
             }
             current = vari.properties;
             currentinherited = vari.inherited;
-            currentreturn = vari.inner.returns;
+            currentreturn = vari.returns;
         }
     }
     return {
@@ -47,5 +46,4 @@ module.exports = (cs, position, returned, newPosition) => {
         inherited: currentinherited, 
         returns: currentreturn
     };
-    //return throughVar(current, currentinherited);
 }

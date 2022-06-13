@@ -5,12 +5,13 @@ const { server2, cached } = require('../global.js');
 const CompletionItemKind = server2.CompletionItemKind;
 const TokenTypes = require('./TokenTypes.js');
 const parseDoc = require('../functions/parseDoc.js');
-const ReturnType = require('./returnType.js');
+const ReturnType = require('./ReturnType.js');
 class Dependency {
-    constructor(_target, _reference, _find) { // null for a token dep
+    constructor(_target, _reference, _find, _override = false) { // null for a token dep
         this.target = _target; // rt
         this.reference = _reference; // reference scope to begin search
         this.find = _find; // rt
+        this.override = _override; // overide already eval'd
         this.handled = false;
     }
 }
@@ -32,7 +33,6 @@ class Operations {
         this.Stored = null;
         this.PrevRow = -1;
         this.PrevCol = -1;
-        this.currentInt = 0;
         this.cs = null; // current scope
         this.dependencies = [];
         this.currentthis = null;
@@ -240,13 +240,15 @@ class Operations {
         let returning = [];
         let returningString = [];
         let returningTokens = [];
+        let returningDeps = [];
         let read = this.Read();
         if(read.Type == TokenTypes.SYMBOL && (read.Val == "]" || read.Val == ")")) { // empty list
             this.Stored = read;
             return {
                 vars: [], 
                 strings: [], 
-                tokens: []
+                tokens: [], 
+                deps: []
             };
         }
         while(true) { 
@@ -263,11 +265,15 @@ class Operations {
                     returningTokens.push(tok);
                     
                     const next = this.Read();
-                    
-                    
                     let isOptional = false;
                     if(next.Val == "plant" || next.Val == "p") {
-                        this.ParseExpression();
+                        const dep = new Dependency(
+                            new ReturnType(ReturnType.Reference, "", [key.Val]), 
+                            null,
+                            this.ParseExpression()
+                        );
+                        this.dependencies.push(dep);
+                        returningDeps.push(dep);
                         isOptional = true;
                     } else {
                         this.Stored = next;
@@ -276,12 +282,11 @@ class Operations {
                     if(doc !== null && doc.length > 2) {
                         const parsed = parseDoc(doc);
                         newvar.inner.documentation = parsed[0];
-                        newvar.inner.params = parsed[1];
+                        newvar.params = parsed[1];
                     }
                     
                     returning.push(newvar);
                     returningString.push(isOptional ? (key.Val + "?") : key.Val);
-                    this.currentInt++;
                 }
             } else {
                 this.ParseExpression();
@@ -299,7 +304,8 @@ class Operations {
         return {
             vars: returning, 
             strings: returningString,
-            tokens: returningTokens
+            tokens: returningTokens, 
+            deps: returningDeps
         };
     }
 
@@ -432,7 +438,7 @@ class Operations {
             return returned;
         }
         // if clear accessor
-        return new ReturnType(ReturnType.Reference, "", returned.raw.concat(returning), returned.baseScope, returned.inherited);
+        return new ReturnType(ReturnType.Reference, "", returned.raw.concat(returning), returned.baseScope, returned.inherited, returned.linkedscope, returned.imported);
     }
 
     ParseLowest() {
@@ -442,6 +448,7 @@ class Operations {
                 const doc = this.currentDocs;
                 let next = this.Read();
                 let prop = false;
+                let skip = false;
                 let _static = false;
                 while(next.Type == TokenTypes.OPERATOR && (next.Val == "public" || next.Val == "private" || next.Val == "protected" || next.Val == "static")) {
                     if(next.Val == "static") {
@@ -453,12 +460,12 @@ class Operations {
                     for(const _vari of this.cs.vars) {
                         if(_vari.inner.label == next.Val) {
                             this.AddDiagnostic(`Cannot declare variable '${next.Val}' more than once in the same scope!`);
+                            skip = true;
                         }
                     }
                     this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, this.currentthis === null ? false : true));
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
-                        
                         prop = true;
                         for(let i = 0; i < 2; i++) {
                             const newType = this.Read();
@@ -470,20 +477,20 @@ class Operations {
                                 this.AddDiagnostic(`Expecting plant or harvest function instead of ${newType.Val}!`);
                             } else {
                                 this.RequireSymbol("{");
-                                
                                 if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
-                                    
                                     const prevFun = this.currentFun;
                                     const _cs = this.ParseScope(false, true);
                                     this.currentFun = prevFun;
                                     if(newType.Val == "plant" || newType.Val == "p") {
                                         _cs.addVar(new Variable("input", CompletionItemKind.Variable, "[variable]"));
-                                        this.currentInt++;
+                                    } else { // harvest || h
+                                        const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[no explicit value]");
+                                        _cs.returns = returns; // we only care about return values for the harvest
+                                        this.dependencies.push(new Dependency(new ReturnType(CompletionItemKind.Variable, "", [next.Val]), this.cs, 
+                                        new ReturnType(ReturnType.Reference, "", ["()"], null, null, _cs), true));
                                     }
                                     const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
-                                    this.currentInt++;
                                     const _super = new Variable("super", CompletionItemKind.Variable, "[variable]");
-                                    this.currentInt++;
                                     _super.ignore = true;
                                     _this.ignore = true;
                                     _cs.vars.push(_this);
@@ -492,7 +499,7 @@ class Operations {
                                         this.dependencies.push(new Dependency(
                                             new ReturnType(ReturnType.Reference, "", ["this"]), 
                                             _cs, 
-                                            new ReturnType(CompletionItemKind.Variable, "[object reference]", [], this.currentthis.properties, this.currentthis.inherited)
+                                            new ReturnType(CompletionItemKind.Variable, "[object reference]al", [], this.currentthis.properties, this.currentthis.inherited)
                                         ));
                                         if(next.Val == "constructor") {
                                             this.dependencies.push(new Dependency(
@@ -513,24 +520,26 @@ class Operations {
                         this.Stored = afterNext;
                     }
                     
-                    
-                    const newvar = new Variable(next.Val, CompletionItemKind.Variable, "[variable]");
-                    if(doc !== null && doc.length > 2) {
-                        const parsed = parseDoc(doc);
-                        newvar.inner.documentation = parsed[0];
-                        newvar.inner.params = parsed[1];
+                    if(!skip) {
+                        const newvar = new Variable(next.Val, CompletionItemKind.Variable, "[variable]");
+                        if(doc !== null && doc.length > 2) {
+                            const parsed = parseDoc(doc);
+                            newvar.inner.documentation = parsed[0];
+                            newvar.params = parsed[1];
+                        }
+                        if(prop) {
+                            newvar.evaluated = true;
+                        }
+                        newvar.isStatic = _static;
+                        
+                        this.cs.addVar(newvar);
                     }
-                    if(prop) {
-                        newvar.evaluated = true;
-                    }
-                    newvar.isStatic = _static;
                     
-                    this.cs.addVar(newvar);
-                    this.currentInt++;
                     return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
                 }
                 this.AddDiagnostic(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`);
                 this.Stored = next;
+                return new ReturnType(CompletionItemKind.Variable);
             }
             if(returned.Val == "tool" || returned.Val == "t") {
                 const startline = this.Row;
@@ -556,13 +565,15 @@ class Operations {
                 desc += " }";
                 for(const token of params.tokens) {
                     token.reference = _cs;
-                    
+                }
+                for(const dep of params.deps) {
+                    console.log(dep);
+                    dep.reference = _cs;
                 }
                 _cs.vars = _cs.vars.concat(params.vars);
+                
                 const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
-                this.currentInt++;
                 const _super = new Variable("super", CompletionItemKind.Variable, "[variable]");
-                this.currentInt++;
                 _super.ignore = true;
                 _this.ignore = true;
                 _cs.vars.push(_this);
@@ -580,7 +591,6 @@ class Operations {
                     ));
                 }
                 const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[no explicit value]");
-                this.currentInt++;
                 _cs.returns = returns;
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs);
             }
@@ -609,10 +619,8 @@ class Operations {
                         path += ".rdsh";
                     }
                     
-                    
                     const cache = cached[path];
                     if(cache !== undefined) {
-                        
                         return new ReturnType(ReturnType.Reference, "[import]", [], null, null, null, cache.cs.returns);
                     }
                 }
@@ -646,7 +654,6 @@ class Operations {
                     hasConstr = new Variable("constructor", CompletionItemKind.Function);
                     hasConstr.evaluated = true;
                     hasConstr.inner.detail = "[tool] {}";
-                    this.currentInt++;
                     cs.vars.push(hasConstr);
                 }
                 this.RequireSymbol("}");
