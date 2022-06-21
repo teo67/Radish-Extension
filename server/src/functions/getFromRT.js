@@ -48,7 +48,6 @@ const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = nul
             arg2 = raw[i - 1];
         }
         if(!checkVar(currentVar, dep, arg1, arg2, playground) || (currentVar.ignore && playground)) {
-            
             return playground ? before : null;
         }
         before.push(currentVar);

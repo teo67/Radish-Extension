@@ -37,7 +37,7 @@
 		},
 		"operators": {
 			"name": "keyword.operator.radish",
-			"match": "(\\b(plant|p)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:])"
+			"match": "(\\b(plant|p)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^])"
 		},
 		"modifiers": {
 			"name": "storage.modifier.radish",
@@ -63,13 +63,21 @@
 			}]
 		},
 		"strings": {
-			"name": "string.quoted.double.radish",
-			"begin": "\"",
-			"end": "\""
+			"patterns": [{
+				"name": "string.quoted.double.radish",
+				"begin": "(?<!\\\\)('|\")",
+				"end": "(?<!\\\\)('|\")",
+				"patterns": [
+					{
+						"name": "constant.character.escape",
+						"match": "\\\\."
+					}
+				]
+			}]
 		}, 
 		"declarations": {
 			"name": "storage.type.radish",
-			"match": "\\b(d|dig)\\b"
+			"match": "\\b(d|dig|uproot)\\b"
 		}, 
 		"variables": {
 			"patterns": [{

@@ -58,6 +58,9 @@ const assess = new Response(async document => {
             tokens: [], 
             noHoverZones: []
         };
+        if(global.importCache[document.uri] !== undefined) {
+            delete global.importCache[document.uri];
+        }
     }
     const version = document.version;
     await new Promise((resolve, reject) => setTimeout(resolve, global.assessTime));

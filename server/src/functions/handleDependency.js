@@ -7,32 +7,23 @@ const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
 const ReturnType = require('../classes/ReturnType.js');
 const handleDependency = (dep) => {
-    console.log("target:")
-    console.log(dep.target)
-    console.log("find:")
-    console.log(dep.find);
     if(dep.handled) {
-        console.log('already handled')
         return; // this could save some time
     }
     const found = passInRT(dep, dep.target, true);
     
     if(found === null) { // no var or failed somewhere
-        console.log('not found target')
         return;
     }
     const foundTarget = found[found.length - 1];
     if(foundTarget.evaluated && !dep.override) { // already eval'd
-        console.log('already evald')
         return;
     }
     let foundSet = passInRT(dep, dep.find);
     if(foundSet === null) { 
-        console.log('not found fin')
         return;
     }
     if(!checkVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc  
-        console.log('find not evald')
         return;
     }
     foundSet = foundSet[foundSet.length - 1];
@@ -124,7 +115,10 @@ const handleDependency = (dep) => {
     } else {
         foundTarget.inner.detail = foundSet.inner.detail;
     }
-    foundTarget.inner.kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
+    const kind = (dep.find.type == ReturnType.Reference ? foundSet.inner.kind : dep.find.type);
+    if(kind != CompletionItemKind.Variable && kind != CompletionItemKind.Field) {
+        foundTarget.inner.kind = kind; // no need to set if variable (otherwise messes with parameters)
+    }
     if(foundSet.returns !== null) {
         foundTarget.returns = foundSet.returns;
         for(const _dep of foundTarget.returndeps) {

@@ -8,14 +8,14 @@ module.exports = tokendependencies => {
     let lastline = 0;
     let lastchar = 0;
     for(const dep of tokendependencies) {
-        const gotten = getFromRT(null, dep.reference, dep.before.concat(dep.path), dep.baseScope, null, null, null, "", false, true);
-        
-        if(dep.baseScope !== null) {
+        const gotten = getFromRT(null, dep.reference, dep.before.concat(dep.path), dep.baseScope, null, dep.linkedscope, dep.imported, "", false, true);
+        if(dep.baseScope !== null || dep.imported !== null) {
             gotten.shift();
         }
         if(gotten === null || gotten.length > dep.before.length + dep.path.length) {
             continue;
         }
+        // only works if there is NO scope to work with
         if(gotten.length == 1 && dep.lines[0] >= 0 && dep.chars[0] >= 0) {
             const goodIndex = goodToGo.indexOf(gotten[0]);
             if(goodIndex == -1) {

@@ -12,10 +12,11 @@ const capabilities = {
 const tokenTypes = [server2.SemanticTokenTypes.class, server2.SemanticTokenTypes.function, server2.SemanticTokenTypes.parameter];
 const tokenKey = [server2.CompletionItemKind.Class, server2.CompletionItemKind.Function, server2.CompletionItemKind.Field];
 const cached = {};
+const importCache = {};
 const autoCompleteDefaults = [
     "if", "elseif", "else", 
     "while", "for", 
-    "dig", "d", "tool", "t", "plant", "p",
+    "dig", "d", "tool", "t", "plant", "p", "uproot",
     "harvest", "h", "cancel", "continue", "end",
     "new", "null", "class",
     "public", "private", "protected", "static",
@@ -24,5 +25,5 @@ const autoCompleteDefaults = [
 const assessTime = 50;
 let currentOperator = null;
 module.exports = {
-    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, currentOperator
+    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, currentOperator, importCache
 };

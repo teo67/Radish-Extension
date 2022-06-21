@@ -1,11 +1,16 @@
 const lex = require('../functions/lex.js');
 const Scope = require('./Scope.js');
 const Variable = require('./Variable.js');
-const { server2, cached } = require('../global.js');
-const CompletionItemKind = server2.CompletionItemKind;
+// global.server2, global.cached, global.importCache, global.connection
+const global = require('../global.js');
+const CompletionItemKind = global.server2.CompletionItemKind;
 const TokenTypes = require('./TokenTypes.js');
 const parseDoc = require('../functions/parseDoc.js');
 const ReturnType = require('./ReturnType.js');
+const fs = require('fs');
+const CountingReader = require('./CountingReader.js');
+const handleDependency = require('../functions/handleDependency.js').run;
+const handleConstDep = require('../functions/handleConstDep.js');
 class Dependency {
     constructor(_target, _reference, _find, _override = false) { // null for a token dep
         this.target = _target; // rt
@@ -16,7 +21,7 @@ class Dependency {
     }
 }
 class TokenDependency {
-    constructor(_lines, _chars, _path, _reference, _baseScope, _isDeclarationIfSoWhatsThis = null, _before = []) {
+    constructor(_lines, _chars, _path, _reference, _baseScope, _isDeclarationIfSoWhatsThis = null, _before = [], _imported = null, _linkedscope = null) {
         this.lines = _lines;
         this.chars = _chars;
         this.path = _path;
@@ -25,6 +30,8 @@ class TokenDependency {
         this.before = _before;
         this.isDeclarationIfSoWhatsThis = _isDeclarationIfSoWhatsThis; // only used to decide which variables to analyze as used only once
         // null: not declaration, false: no scope, true: scope
+        this.imported = _imported;
+        this.linkedscope = _linkedscope;
     }
 }
 class Operations {
@@ -65,7 +72,7 @@ class Operations {
         character: this.Col - 1
     }) {
         this.diagnostics.push({
-            severity: server2.DiagnosticSeverity.Error,
+            severity: global.server2.DiagnosticSeverity.Error,
             range: {
                 start: start, 
                 end: end
@@ -109,7 +116,6 @@ class Operations {
         return lex(this.reader);
     }
     ParseScope(setthis = false, setfun = false) { //returns scope
-        
         const saved = this.cs;
         const newscope = new Scope(this.Row, this.Col, this.cs);
         this.cs = newscope;
@@ -154,11 +160,10 @@ class Operations {
                         currentcs = currentcs.enclosing;
                     }
                     fun = currentcs;
-                    
                 }
                 const return1 = new ReturnType(ReturnType.Reference, "", ["()"], null, null, fun);
                 this.dependencies.push(new Dependency(return1, this.cs, ret));
-            
+                
                 const after = this.Read();
                 this.cs.markUnused(this.lastTrim);
                 this.Stored = after;
@@ -227,7 +232,6 @@ class Operations {
     }
 
     ParseIf() { // single scope
-        
         this.RequireSymbol("(");
         this.ParseExpression();
         this.RequireSymbol(")");
@@ -309,107 +313,186 @@ class Operations {
         };
     }
 
-    Parse(lowerfunction, cases, extracheck = null) { 
-        const a = this[lowerfunction]();
-        let next = this.Read();
-        const check = () => {
+    Parse(lowerfunction, cases) { 
+        let current = this[lowerfunction]();
+        let next = null;
+        let done = false;
+        while(!done) {
+            next = this.Read();
+            done = true;
             if(next.Type == TokenTypes.OPERATOR) {
-                if(extracheck != null) {
-                    const result = extracheck(next, a);
-                    if(result !== null) {
-                        return result;
-                    }
-                }
-                if(cases.includes(next.Val)) {
-                    this[lowerfunction]();
-                    return true;
+                const result = this[cases](next.Val, current, lowerfunction);
+                if(result != null) {
+                    current = result;
+                    done = false;
                 }
             }
-            this.Stored = next; // cancel viewing
-            return false;
-        };
-        while(check()) {
-            next = this.Read();
         }
-        return a; // return first value parsed for type-checking purposes
+        this.Stored = next;
+        return current;
+    }
+
+    IsExpression(val, current, previous) {
+        if(val[val.length - 1] == "=") {
+            const edited = val.slice(0, val.length - 1);
+            const others = ["IsCombiners", "IsComparators", "IsTerms", "IsFactors"];
+            for(const other of others) {
+                const returned = this[other](edited, current, previous);
+                if(returned !== null) {
+                    return returned;
+                }
+            }
+        } else if(val == "plant" || val == "p") {
+            const other = this[previous]();
+            this.dependencies.push(new Dependency(current, this.cs, other));
+            return current; // continue in next loop
+        }
+        return null; // nothing happened
     }
 
     ParseExpression() {
-        
-        return this.Parse("ParseCombiners", ["plant", "p", "+=", "-=", "*=", "/=", "%="], (next, a) => {
-            if(next.Val == "++" || next.Val == "--") {
-                return false; // end expression
-            }
-            if(next.Val == "plant" || next.Val == "p") {
-                const other = this.ParseCombiners();
-                this.dependencies.push(new Dependency(a, this.cs, other));
-                return true; // continue in next loop
-            }
-            return null; // nothing happened
-        });
+        return this.Parse("ParseCombiners", "IsExpression");
     }
+
+    IsCombiners(val, current, previous) {
+        if(val == "||" || val == "&&") {
+            this[previous]();
+            return new ReturnType(CompletionItemKind.Variable, "[boolean]");
+        }
+        if(["&", "|", "^"].includes(val)) {
+            this[previous]();
+            return new ReturnType(CompletionItemKind.Variable, "[number]");
+        }
+        return null;
+    }
+
     ParseCombiners() {
-        return this.Parse("ParseComparators", ["&&", "||"]);
+        return this.Parse("ParseComparators", "IsCombiners");
+    }
+
+    IsComparators(val, current, previous) {
+        if(["==", ">=", "<=", ">", "<", "!="].includes(val)) {
+            this[previous]();
+            return new ReturnType(CompletionItemKind.Variable, "[boolean]");
+        }
+        return null;
     }
 
     ParseComparators() {
-        return this.Parse("ParseTerms", ["==", ">=", "<=", ">", "<", "!="]);
+        return this.Parse("ParseShifts", "IsComparators");
+    }
+
+    IsShifts(val, current, previous) {
+        if(val == "<<" || val == ">>") {
+            this[previous]();
+            return new ReturnType(CompletionItemKind.Variable, "[number]");
+        }
+        return null;
+    }
+
+    ParseShifts() {
+        return this.Parse("ParseTerms", "IsShifts");
+    }
+
+    IsTerms(val, current, previous) {
+        if(val == "+" || val == "-") {
+            this[previous]();
+            return this.Convert(current);
+        }
+        return null;
     }
 
     ParseTerms() {
-        return this.Parse("ParseFactors", ["+", "-"]);
+        return this.Parse("ParseFactors", "IsTerms");
+    }
+
+    IsFactors(val, current, previous) {
+        if(["*", "/", "%"].includes(val)) {
+            this[previous]();
+            return this.Convert(current);
+        }
+        return null;
     }
 
     ParseFactors() {
-        return this.Parse("ParseNegatives", ["*", "/", "%"]);
+        return this.Parse("ParseNegatives", "IsFactors");
+    }
+
+    Convert(current) {
+        if(current.detail.startsWith('[string : ') || current.detail.startsWith('[number : ')) {
+            current.detail = current.detail.slice(0, 7) + ']';
+        }
+        return current;
     }
 
     ParseNegatives() {
         const returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
-            if(returned.Val == "-" || returned.Val == "!") {
-                return this.ParseNegatives();
+            if(returned.Val == "-" || returned.Val == "~") {
+                this.ParseNegatives();
+                return new ReturnType(CompletionItemKind.Variable, "[number]");
+            }
+            if(returned.Val == "!") {
+                this.ParseNegatives();
+                return new ReturnType(CompletionItemKind.Variable, "[boolean]");
             }
         }
         this.Stored = returned;
-        return this.ParseCalls();
+        return this.ParsePosts();
+    }
+
+    ParsePosts() {
+        const before = this.ParseCalls();
+        let returned = null;
+        let done = false;
+        while(!done) {
+            returned = this.Read();
+            if(!(returned.Type == TokenTypes.OPERATOR && (returned.Val == "++" || returned.Val == "--"))) {
+                done = true;
+            }
+        }
+        this.Stored = returned;
+        return before;
     }
     
     ParseCalls(acceptParens = true) {
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
         const returned = this.ParseLowest();
-        
         const returning = [];
         const startlines = [];
         const startchars = [];
-        let next = this.Read();
-        const checkCheck = () => {
-            if(next.Val == "(" && acceptParens) {
-                stillOriginal = false;
-                this.ParseLi();
-                this.RequireSymbol(")");
-                if(!isUnknown) {
-                    returning.push("()");
-                    startlines.push(-1);
-                    startchars.push(-1);
-                }
-                return true;
-            }
-            if(next.Val == "[") {
-                this.ParseExpression();
-                this.RequireSymbol("]");
-                isUnknown = true;
-                return true;
-            }
-            return false;
-        }
-        const check = () => {
+        let next = null;
+        let done = false;
+        while(!done) {
+            next = this.Read();
             if(next.Type == TokenTypes.SYMBOL) {
-                while(checkCheck()) {
-                    next = this.Read();
+                let doneDone = false;
+                while(!doneDone) {
+                    if(next.Type == TokenTypes.SYMBOL) {
+                        if(next.Val == "(" && acceptParens) {
+                            stillOriginal = false;
+                            this.ParseLi();
+                            this.RequireSymbol(")");
+                            if(!isUnknown) {
+                                returning.push("()");
+                                startlines.push(-1);
+                                startchars.push(-1);
+                            }
+                            next = this.Read();
+                        } else if(next.Val == "[") {
+                            this.ParseExpression();
+                            this.RequireSymbol("]");
+                            isUnknown = true;
+                            next = this.Read();
+                        } else {
+                            doneDone = true;
+                        }
+                    } else {
+                        doneDone = true;
+                    }
                 }
-                if(next.Val == ".") {
+                if(next.Val == "." || next.Val == ":") {
                     stillOriginal = false;
                     const val = this.Read().Val;
                     if(!isUnknown) {
@@ -417,32 +500,28 @@ class Operations {
                         startlines.push(this.Row);
                         startchars.push(this.Col - val.length);
                     }
-                    return true;
+                } else {
+                    done = true;
                 }
+            } else {
+                done = true;
             }
-            this.Stored = next; // cancel viewing
-            return false;
         }
-        while(check()) {
-            next = this.Read();
-        }
-        
+        this.Stored = next;
         if(returning.length > 0) {
-            this.tokendependencies.push(new TokenDependency(startlines, startchars, returning, this.cs, returned.baseScope, null, returned.raw)); // make it so it doesnt include previous stuff
+            this.tokendependencies.push(new TokenDependency(startlines, startchars, returning, this.cs, returned.baseScope, null, returned.raw, returned.imported, returned.linkedscope)); // make it so it doesnt include previous stuff
         }
-
         if(isUnknown) {
             return new ReturnType(CompletionItemKind.Variable);
         }
         if(stillOriginal) {
             return returned;
         }
-        // if clear accessor
         return new ReturnType(ReturnType.Reference, "", returned.raw.concat(returning), returned.baseScope, returned.inherited, returned.linkedscope, returned.imported);
     }
 
     ParseLowest() {
-        const returned = this.Read();
+        let returned = this.Read();
         if(returned.Type == TokenTypes.OPERATOR) {
             if(returned.Val == "dig" || returned.Val == "d") {
                 const doc = this.currentDocs;
@@ -541,6 +620,10 @@ class Operations {
                 this.Stored = next;
                 return new ReturnType(CompletionItemKind.Variable);
             }
+            if(returned.Val == "uproot") {
+                const next = this.Read();
+                return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
+            }
             if(returned.Val == "tool" || returned.Val == "t") {
                 const startline = this.Row;
                 const startchar = this.Col;
@@ -567,7 +650,6 @@ class Operations {
                     token.reference = _cs;
                 }
                 for(const dep of params.deps) {
-                    console.log(dep);
                     dep.reference = _cs;
                 }
                 _cs.vars = _cs.vars.concat(params.vars);
@@ -605,9 +687,9 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Variable, `[error]`);
             } 
             if(returned.Val == "import") {
-                const next = this.Read();
-                if(next.Type == TokenTypes.STRING) {
-                    let val = next.Val;
+                const next = this.ParseNegatives(); // negatives is "one phrase" level (no whitespace) so it feels right
+                if(next.detail.startsWith('[string :')) {
+                    let val = next.detail.slice(10, next.detail.length - 1);
                     let path = this.path;
                     while(val.startsWith("../")) {
                         val = val.slice(3);
@@ -619,9 +701,43 @@ class Operations {
                         path += ".rdsh";
                     }
                     
-                    const cache = cached[path];
+                    let cache = global.cached[path] === undefined ? undefined : global.cached[path].cs;
                     if(cache !== undefined) {
-                        return new ReturnType(ReturnType.Reference, "[import]", [], null, null, null, cache.cs.returns);
+                        cache = cache.returns;
+                    }
+                    if(cache === undefined) {
+                        cache = global.importCache[path];
+                    }
+                    if(cache === undefined && path.startsWith("file://")) {
+                        let result;
+                        try { 
+                            result = fs.readFileSync(path.slice(6), { encoding: 'utf-8' });
+                        } catch {
+                            result = null;
+                        }
+                        if(result !== null) {
+                            const newOps = new Operations(new CountingReader({
+                                _content: result,
+                                uri: path
+                            }));
+                            const saved = global.currentOperator;
+                            global.currentOperator = newOps;
+                            newOps.ParseScope();
+                            for(const dep of newOps.dependencies) {
+                                handleDependency(dep);
+                            }
+                            for(const dep of newOps.constructordependencies) {
+                                handleConstDep(dep);
+                            }
+                            global.importCache[path] = newOps.cs.returns;
+                            cache = newOps.cs.returns;
+                            global.currentOperator = saved;
+                            global.connection.sendDiagnostics({ uri: path, diagnostics: newOps.diagnostics });
+                            newOps.CleanUp();
+                        }
+                    }
+                    if(cache !== undefined) {
+                        return new ReturnType(ReturnType.Reference, "[import]", [], null, null, null, cache);
                     }
                 }
                 return new ReturnType(CompletionItemKind.Variable, "[import]");
@@ -669,8 +785,39 @@ class Operations {
                 this.RequireSymbol(")");
                 return new ReturnType(CompletionItemKind.Variable, `[object : Class]`, [], [], next); // this way the object gets linked to the class it is derived from while still being treated like an object
             }
-        } else if(returned.Type == TokenTypes.STRING || returned.Type == TokenTypes.NUMBER || returned.Type == TokenTypes.BOOLEAN) {
-            return new ReturnType(CompletionItemKind.Variable, ["[string]", "[number]", "[boolean]"][[TokenTypes.STRING, TokenTypes.NUMBER, TokenTypes.BOOLEAN].indexOf(returned.Type)]);
+        } else if(returned.Type == TokenTypes.STRING) {
+            const add = () => {
+                this.noHoverZones.push({
+                    startline: this.lastTrim.line + 1, 
+                    startchar: this.lastTrim.character + 2,
+                    endline: this.Row, 
+                    endchar: this.Col - 1
+                });
+            }
+            let value = returned.Val.slice(1, returned.Val.length - 1);
+            if(returned.Val[0] == '\'') {
+                value = null;
+                this.AddDiagnostic("Strings may not be declared using single quotes!");
+            } else {
+                add();
+                while(returned.Val[returned.Val.length - 1] == '\'') {
+                    value = null;
+                    this.ParseExpression();
+                    returned = this.Read();
+                    if(returned.Type != TokenTypes.STRING) {
+                        this.AddDiagnostic("Strings may not be ended using single quotes!");
+                    } else if(returned.Val[0] != '\'') {
+                        this.AddDiagnostic("String interpolations must begin and end with single quotes!");
+                    } else {
+                        add();
+                    }
+                }
+            }
+            return new ReturnType(CompletionItemKind.Variable, value === null ? "[string]" : `[string : ${value}]`);
+        } else if(returned.Type == TokenTypes.NUMBER) {
+            return new ReturnType(CompletionItemKind.Variable, `[number : ${returned.Val}]`);
+        } else if(returned.Type == TokenTypes.BOOLEAN) {
+            return new ReturnType(CompletionItemKind.Variable, "[boolean]");
         } else if(returned.Type == TokenTypes.KEYWORD) {
             this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - returned.Val.length], [returned.Val], this.cs, null));
             return new ReturnType(ReturnType.Reference, "", [ returned.Val ]);

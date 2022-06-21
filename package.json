@@ -21,6 +21,13 @@
 	],
 	"main": "./client/src/extension.js",
 	"contributes": {
+		"iconThemes": [
+			{
+				"id": "radish", 
+				"label": "Radish File Icon Theme", 
+				"path": "./icon.json"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "Configuration",

@@ -40,9 +40,6 @@ const completion = new Response(_textDocumentPosition => {
     if(returned[0].length == 1) { // only add defaults if we aren't accessing a property
         all = defaults.concat(all);
     }
-
-    console.log(all);
-    
     return all;
 }, "completion", []);
 module.exports = completion;

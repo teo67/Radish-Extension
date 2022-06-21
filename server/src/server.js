@@ -86,8 +86,6 @@ documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
 documents.onDidChangeContent(change => {
-    
-    
     assess.execute(change.document).then(result => {
         if(result !== null) {
             connection.sendDiagnostics(result);

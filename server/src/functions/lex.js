@@ -14,10 +14,12 @@ const CharTypes = {
 };
 const dict = {};
 const dotChar = '.';
-const quoteChar = '"';
 const hashChar = '#';
 const semi = ';';
+const backslashes = {};
 const init = () => {
+    backslashes['n'] = '\n';
+    backslashes['t'] = '\t';
     const numbers = "0123456789";
     const letters = "abcdefghijklmnopqrstuvwxyz";
     for(let i = 0; i < letters.length; i++) {
@@ -28,7 +30,7 @@ const init = () => {
     for(let i = 0; i < numbers.length; i++) {
         dict[numbers[i]] = CharTypes.digit;
     }
-    const ops = "+-/*<>|&!=%\\";
+    const ops = "+-/*<>|&!=%\\^~";
     for(let i = 0; i < ops.length; i++) {
         dict[ops[i]] = CharTypes.operators;
     }
@@ -42,7 +44,8 @@ const init = () => {
     dict['\r'] = CharTypes.whitespace;
     dict['\xa0'] = CharTypes.whitespace;
     dict['\t'] = CharTypes.whitespace;
-    dict[quoteChar] = CharTypes.quotes;
+    dict['"'] = CharTypes.quotes;
+    dict["'"] = CharTypes.quotes;
     dict[hashChar] = CharTypes.hashtags;
     dict[semi] = CharTypes.semis;
 }
@@ -58,13 +61,13 @@ const getCharType = input => {
 }
 
 const getTokenType = (current, adding, currentRaw) => { // same = no change
-    if(current == TokenTypes.COMMENT && currentRaw.indexOf(hashChar) == currentRaw.lastIndexOf(hashChar)) { // being in a comment gets first priority
+    if(current == TokenTypes.COMMENT && (currentRaw.length == 1 || currentRaw[currentRaw.length - 1] != hashChar)) { // being in a comment gets first priority
         return TokenTypes.SAME;
     }
-    if(current == TokenTypes.SEMIS && currentRaw.indexOf(semi) == currentRaw.lastIndexOf(semi)) { // being in a comment gets first priority
+    if(current == TokenTypes.SEMIS && (currentRaw.length == 1 || currentRaw[currentRaw.length - 1] != semi)) { // being in a comment gets first priority
         return TokenTypes.SAME;
     }
-    if(current == TokenTypes.STRING && currentRaw.indexOf(quoteChar) == currentRaw.lastIndexOf(quoteChar)) { // then being in a string
+    if(current == TokenTypes.STRING && (currentRaw.length == 1 || (currentRaw[currentRaw.length - 1] != '"' && currentRaw[currentRaw.length - 1] != "'"))) { // then being in a string
         return TokenTypes.SAME;
     }
     switch(adding) {
@@ -101,9 +104,6 @@ const convert = (current, currentRaw) => {
         //Console.WriteLine($"Lexer returning {type}: {currentRaw}");
         return new LexEntry(type, currentRaw);
     }
-    if(current == TokenTypes.STRING) {
-        return new LexEntry(current, currentRaw.slice(1, currentRaw.length - 1));
-    }
     //Console.WriteLine($"Lexer returning {current}: {currentRaw}");
     return new LexEntry(current, currentRaw);
 }
@@ -138,25 +138,43 @@ const resolve = (current, currentRaw, startPos, reader) => {
 const run = (reader) => {
     global.currentOperator.currentDocs = null;
     if(reader.EndOfStream) {
+        global.currentOperator.lastTrim = {
+            line: reader.row - 1, 
+            character: reader.col - 1
+        };
         return new LexEntry(TokenTypes.ENDOFFILE, "");
     }
     let currentRaw = "";
     let current = TokenTypes.NONE;
     const startPos = {};
+    let skip = false;
     do {
         const read = reader.Peek();
-        const newToken = getTokenType(current, getCharType(read), currentRaw);
-        if(newToken == TokenTypes.SAME) {
+        if(read == '\\' && current == TokenTypes.STRING) {
             reader.Read();
-            currentRaw += read;
-        } else {
-            const resolved = resolve(current, currentRaw, startPos, reader);
-            if(resolved) {
-                return resolved;
+            const next = reader.Peek();
+            reader.Read();
+            if(backslashes[next] !== undefined) {
+                currentRaw += backslashes[next];
+            } else {
+                currentRaw += next;
             }
-            reader.Read();
-            current = newToken;
-            currentRaw = read;
+            skip = true;
+        } else {
+            const newToken = getTokenType(current, getCharType(read), currentRaw);
+            if(skip || newToken == TokenTypes.SAME) {
+                skip = false;
+                reader.Read();
+                currentRaw += read;
+            } else {
+                const resolved = resolve(current, currentRaw, startPos, reader);
+                if(resolved) {
+                    return resolved;
+                }
+                reader.Read();
+                current = newToken;
+                currentRaw = read;
+            }
         }
     } while(!reader.EndOfStream);
     const resolved = resolve(current, currentRaw, startPos, reader);

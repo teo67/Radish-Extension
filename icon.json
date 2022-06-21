@@ -1,0 +1,10 @@
+{
+    "iconDefinitions": {
+        "radish-icon": {
+            "iconPath": "./logo.png"
+        }
+    }, 
+    "fileExtensions": {
+        "rdsh": "radish-icon"
+    }
+}
