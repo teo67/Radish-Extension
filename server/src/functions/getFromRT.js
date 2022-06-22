@@ -4,7 +4,8 @@ const checkVar = require('./checkVar.js');
 const findInVariable = require('./findInVariable.js');
 const propertyStuff = require('./propertyStuff.js').run;
 const CompletionItemKind = require('../global.js').server2.CompletionItemKind;
-const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = null, imported = null, detail = "", propertycreation = false, playground) => { // false = cancel
+const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = null, imported = null, detail = "", propertycreation = false, playground = false) => { // false = cancel
+    console.log(raw);
     let _inherited = null;
     if(inherited !== null) {
         _inherited = exporting.dep(inherited, dep, playground);

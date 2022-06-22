@@ -11,7 +11,6 @@ const handleDependency = (dep) => {
         return; // this could save some time
     }
     const found = passInRT(dep, dep.target, true);
-    
     if(found === null) { // no var or failed somewhere
         return;
     }
@@ -102,10 +101,10 @@ const handleDependency = (dep) => {
         }
     } 
     
-    
     foundTarget.inherited = foundSet.inherited;
+    foundTarget.properties = foundSet.properties;
     for(const prop of foundSet.properties) {
-        foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
+        //foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
         exporting.dep(foundTarget, prop);
     }
     if(foundSet.inner.detail.length == 0) {

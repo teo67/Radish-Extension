@@ -542,7 +542,7 @@ class Operations {
                             skip = true;
                         }
                     }
-                    this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, this.currentthis === null ? false : true));
+                    this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, this.currentthis !== null));
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
                         prop = true;
@@ -622,6 +622,7 @@ class Operations {
             }
             if(returned.Val == "uproot") {
                 const next = this.Read();
+                this.tokendependencies.push(new TokenDependency([this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, null));
                 return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
             }
             if(returned.Val == "tool" || returned.Val == "t") {
@@ -687,9 +688,13 @@ class Operations {
                 return new ReturnType(CompletionItemKind.Variable, `[error]`);
             } 
             if(returned.Val == "import") {
-                const next = this.ParseNegatives(); // negatives is "one phrase" level (no whitespace) so it feels right
+                const next = this.ParseExpression(); // negatives is "one phrase" level (no whitespace) so it feels right
                 if(next.detail.startsWith('[string :')) {
                     let val = next.detail.slice(10, next.detail.length - 1);
+                    const lastI = val.lastIndexOf('/');
+                    if(lastI != -1) {
+                        val = val.slice(0, lastI) + val.slice(lastI).toLowerCase(); // file names are always lowercase in uris
+                    }
                     let path = this.path;
                     while(val.startsWith("../")) {
                         val = val.slice(3);
@@ -700,7 +705,6 @@ class Operations {
                     if(!val.endsWith(".rdsh")) {
                         path += ".rdsh";
                     }
-                    
                     let cache = global.cached[path] === undefined ? undefined : global.cached[path].cs;
                     if(cache !== undefined) {
                         cache = cache.returns;
