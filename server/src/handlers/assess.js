@@ -80,6 +80,7 @@ const assess = new Response(async document => {
     for(const dep of ops.dependencies) {
         handleDependency(dep);
     }
+    console.log(`INFO: assess used ${ops.dependencies.length} dependencies and ${ops.numgets} gets.`);
     for(const dep of ops.constructordependencies) {
         handleConstDep(dep);
     }

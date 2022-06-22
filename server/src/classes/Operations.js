@@ -54,6 +54,7 @@ class Operations {
             character: 0
         };
         this.path = reader.file.uri.slice(0, reader.file.uri.lastIndexOf("/"));
+        this.numgets = 0; // only for data collection
     }
 
     CleanUp() {
@@ -115,14 +116,14 @@ class Operations {
         this.PrevRow = this.reader.row;
         return lex(this.reader);
     }
-    ParseScope(setthis = false, setfun = false) { //returns scope
+    ParseScope(setthis = false, setfun = null) { //returns scope
         const saved = this.cs;
-        const newscope = new Scope(this.Row, this.Col, this.cs);
+        const newscope = setfun === null ? new Scope(this.Row, this.Col, this.cs) : setfun;
         this.cs = newscope;
         if(setthis) {
             this.currentthis.properties = newscope.vars;
         }
-        if(setfun) {
+        if(setfun !== null) {
             this.currentFun = newscope;
         }
         let read = this.Read();
@@ -557,9 +558,7 @@ class Operations {
                             } else {
                                 this.RequireSymbol("{");
                                 if(newType.Val == "plant" || newType.Val == "p" || newType.Val == "harvest" || newType.Val == "h") {
-                                    const prevFun = this.currentFun;
-                                    const _cs = this.ParseScope(false, true);
-                                    this.currentFun = prevFun;
+                                    const _cs = new Scope(this.Row, this.Col, this.cs);
                                     if(newType.Val == "plant" || newType.Val == "p") {
                                         _cs.addVar(new Variable("input", CompletionItemKind.Variable, "[variable]"));
                                     } else { // harvest || h
@@ -578,7 +577,7 @@ class Operations {
                                         this.dependencies.push(new Dependency(
                                             new ReturnType(ReturnType.Reference, "", ["this"]), 
                                             _cs, 
-                                            new ReturnType(CompletionItemKind.Variable, "[object reference]al", [], this.currentthis.properties, this.currentthis.inherited)
+                                            new ReturnType(CompletionItemKind.Variable, "[object reference]", [], this.currentthis.properties, this.currentthis.inherited)
                                         ));
                                         if(next.Val == "constructor") {
                                             this.dependencies.push(new Dependency(
@@ -588,6 +587,9 @@ class Operations {
                                             ));
                                         }
                                     }
+                                    const prevFun = this.currentFun;
+                                    this.ParseScope(false, _cs);
+                                    this.currentFun = prevFun;
                                     this.RequireSymbol("}");
                                 } else {
                                     this.AddDiagnostic("Only plant and harvest functions are valid in this context!"); // also likely to be redundant
@@ -630,15 +632,12 @@ class Operations {
                 const startchar = this.Col;
                 this.RequireSymbol("(");
                 const params = this.ParseLi(true);
-                
                 this.RequireSymbol(")");
                 this.RequireSymbol("{");
-                const previousFun = this.currentFun;
-                const _cs = this.ParseScope(false, true);
-                this.currentFun = previousFun;
+                const _cs = new Scope(this.Row, this.Col, this.cs);
                 _cs.startchar = startchar;
                 _cs.startline = startline;
-                this.RequireSymbol("}");
+                
                 let desc = "[tool] { ";
                 for(let i = 0; i < params.strings.length; i++) {
                     desc += params.strings[i];
@@ -675,6 +674,10 @@ class Operations {
                 }
                 const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[no explicit value]");
                 _cs.returns = returns;
+                const prevFun = this.currentFun;
+                this.ParseScope(false, _cs);
+                this.currentFun = prevFun;
+                this.RequireSymbol("}");
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs);
             }
             if(returned.Val == "null") {
@@ -706,7 +709,7 @@ class Operations {
                         path += ".rdsh";
                     }
                     let cache = global.cached[path] === undefined ? undefined : global.cached[path].cs;
-                    if(cache !== undefined) {
+                    if(cache !== undefined && cache !== null) {
                         cache = cache.returns;
                     }
                     if(cache === undefined) {

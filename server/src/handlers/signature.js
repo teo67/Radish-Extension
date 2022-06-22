@@ -3,6 +3,7 @@ const { cached, server2 } = require('../global.js');
 const getobj = require('../functions/getobj.js');
 const getResults = require('../functions/getResults.js');
 const throughVar = require('../functions/throughVar.js');
+const Stack = require('../classes/Stack.js');
 const addToParams = (params, current, final, i) => {
     if(current != '') {
         const realCurrent = current[current.length - 1] == '?' ? current.slice(0, current.length - 1) : current;
@@ -46,18 +47,20 @@ const signature = new Response(s => {
         line: s.position.line, 
         character: s.position.character
     };
-    let numParentheses = 0;
     let numCommas = 0;
+    const stack = new Stack();
     while(index >= 0) {
-        if(stored.ref._content[index] == ')') {
-            numParentheses++;
-        } else if(stored.ref._content[index] == '(') {
-            numParentheses--;
-            if(numParentheses < 0) {
-                break;
+        const i = stored.ref._content[index];
+        if(stack.head === null) {
+            if(i == '(') {
+                break; // good
             }
-        } else if(stored.ref._content[index] == ',') {
-            numCommas++;
+            if(i == ',') {
+                numCommas++;
+            }
+        }
+        if(!stack.add(i)) {
+            return default1;
         }
         index--;
         positionCopy.character--;
@@ -66,7 +69,7 @@ const signature = new Response(s => {
             positionCopy.character = stored.ref._lineOffsets[positionCopy.line + 1] - stored.ref._lineOffsets[positionCopy.line] - 1;
         }
     }
-    if(numParentheses >= 0) { // if we never began the function
+    if(stack.head !== null || index < 0) { // if something is wrong
         return default1;
     }
     positionCopy.character--; // this always works because the last character must be ( and therefore cannot be a newline
