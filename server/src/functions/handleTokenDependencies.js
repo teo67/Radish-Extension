@@ -1,6 +1,6 @@
 const getFromRT = require('./getFromRT.js').run;
 const global = require('../global.js');
-module.exports = tokendependencies => {
+module.exports = (tokendependencies, operations) => {
     const usedOnce = [];
     const goodToGo = [];
     const locations = [];
@@ -59,7 +59,7 @@ module.exports = tokendependencies => {
         overall = overall.concat(returning);
     }
     for(let i = 0; i < usedOnce.length; i++) {
-        global.currentOperator.diagnostics.push({
+        operations.diagnostics.push({
             severity: global.server2.DiagnosticSeverity.Hint,
             range: {
                 start: locations[i], 

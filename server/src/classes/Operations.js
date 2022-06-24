@@ -114,7 +114,7 @@ class Operations {
         }
         this.PrevCol = this.reader.col;
         this.PrevRow = this.reader.row;
-        return lex(this.reader);
+        return lex(this.reader, this);
     }
     ParseScope(setthis = false, setfun = null) { //returns scope
         const saved = this.cs;
@@ -188,7 +188,7 @@ class Operations {
             read = this.Read();
         }
         
-        newscope.end(this.Row, this.Col - read.Val.length); // we subtract 1 to ignore the last bracket
+        newscope.end(this.Row, this.Col - read.Val.length, this); // we subtract 1 to ignore the last bracket
         this.Stored = read;
         if(saved !== null) {
             saved.append(newscope);
@@ -205,7 +205,7 @@ class Operations {
         const newscope = new Scope(this.Row, this.Col, this.cs);
         this.cs = newscope;
         inner();
-        newscope.end(this.Row, this.Col);
+        newscope.end(this.Row, this.Col, this);
         saved.append(newscope);
         this.cs = saved;
         return newscope;
@@ -416,7 +416,19 @@ class Operations {
     }
 
     ParseFactors() {
-        return this.Parse("ParseNegatives", "IsFactors");
+        return this.Parse("ParseExponents", "IsFactors");
+    }
+
+    IsExponent(val, current, previous) {
+        if(val == "**") {
+            this[previous]();
+            return this.Convert(current);
+        }
+        return null;
+    }
+
+    ParseExponents() {
+        return this.Parse("ParseNegatives", "IsExponent");
     }
 
     Convert(current) {
@@ -562,7 +574,7 @@ class Operations {
                                     if(newType.Val == "plant" || newType.Val == "p") {
                                         _cs.addVar(new Variable("input", CompletionItemKind.Variable, "[variable]"));
                                     } else { // harvest || h
-                                        const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[no explicit value]");
+                                        const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[any]");
                                         _cs.returns = returns; // we only care about return values for the harvest
                                         this.dependencies.push(new Dependency(new ReturnType(CompletionItemKind.Variable, "", [next.Val]), this.cs, 
                                         new ReturnType(ReturnType.Reference, "", ["()"], null, null, _cs), true));
@@ -672,7 +684,7 @@ class Operations {
                         new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
                     ));
                 }
-                const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[no explicit value]");
+                const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[any]");
                 _cs.returns = returns;
                 const prevFun = this.currentFun;
                 this.ParseScope(false, _cs);
@@ -727,18 +739,15 @@ class Operations {
                                 _content: result,
                                 uri: path
                             }));
-                            const saved = global.currentOperator;
-                            global.currentOperator = newOps;
                             newOps.ParseScope();
                             for(const dep of newOps.dependencies) {
-                                handleDependency(dep);
+                                handleDependency(dep, newOps);
                             }
                             for(const dep of newOps.constructordependencies) {
-                                handleConstDep(dep);
+                                handleConstDep(dep, newOps);
                             }
                             global.importCache[path] = newOps.cs.returns;
                             cache = newOps.cs.returns;
-                            global.currentOperator = saved;
                             global.connection.sendDiagnostics({ uri: path, diagnostics: newOps.diagnostics });
                             newOps.CleanUp();
                         }
@@ -766,6 +775,7 @@ class Operations {
                     inherited: inherited // FIX
                 };
                 const cs = this.ParseScope(true);
+                this.currentthis = prevthis;
                 let hasConstr = false;
                 for(const vari of cs.vars) {
                     if(vari.inner.label == "constructor") {
@@ -780,7 +790,6 @@ class Operations {
                     cs.vars.push(hasConstr);
                 }
                 this.RequireSymbol("}");
-                this.currentthis = prevthis;
                 return new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
             }
             if(returned.Val == "new") {

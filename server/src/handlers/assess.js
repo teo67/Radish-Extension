@@ -3,15 +3,10 @@ const Reader = require('../classes/CountingReader.js');
 const Operations = require('../classes/Operations.js');
 const Variable = require('../classes//Variable.js');
 const Scope = require('../classes/Scope.js');
-const DiagnosticSeverity = global.server2.DiagnosticSeverity;
 const Response = require('./Response.js');
 const handleConstDep = require('../functions/handleConstDep.js');
 const handleDependency = require('../functions/handleDependency.js').run;
 const handleTokenDependencies = require('../functions/handleTokenDependencies');
-/*
-changed = false: assessing either in progress or done, no further changes
-changed = true: assessing in progress and will repeat once done
-*/
 const printInDetail = (any, numspaces) => {
     let returning = '';
     const newindent = `\n${' '.repeat(numspaces)}`;
@@ -72,21 +67,19 @@ const assess = new Response(async document => {
         return null;
     }
     const ops = new Operations(new Reader(document));
-    global.currentOperator = ops;
     let returning = null;
     ops.ParseScope();
     global.cached[document.uri].cs = ops.cs;
     global.cached[document.uri].noHoverZones = ops.noHoverZones;
     for(const dep of ops.dependencies) {
-        handleDependency(dep);
+        handleDependency(dep, ops);
     }
     console.log(`INFO: assess used ${ops.dependencies.length} dependencies and ${ops.numgets} gets.`);
     for(const dep of ops.constructordependencies) {
-        handleConstDep(dep);
+        handleConstDep(dep, ops);
     }
-    global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies);
+    global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies, ops);
     returning = { uri: document.uri, diagnostics: ops.diagnostics };
-    global.currentOperator = null;
     ops.CleanUp();
     global.cached[document.uri].stamp = version2;
     return returning;

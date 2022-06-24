@@ -1,11 +1,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const completion = require('./handlers/completion.js');
-const { documents, connection, documentSettings, languageserver, capabilities, tokenTypes, server2 } = require('./global.js');
+const { documents, connection, documentSettings, languageserver, capabilities, tokenTypes, uselib } = require('./global.js');
 const assess = require('./handlers/assess.js');
 const tokens = require('./handlers/tokens.js');
 const hover = require('./handlers/hover.js');
 const signature = require('./handlers/signature.js');
 require('./circulars.js')(); // handle circular deps
+if(uselib) {
+    require('./functions/generate.js')();
+}
 connection.onInitialize((params) => {
     const _capabilities = params.capabilities;
     capabilities.configuration = !!(_capabilities.workspace && !!_capabilities.workspace.configuration);

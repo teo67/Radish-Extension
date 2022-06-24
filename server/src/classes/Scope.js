@@ -11,14 +11,13 @@ class Scope {
         this.enclosing = _enclosing;
         this.isthis = _isthis;
         this.returns = null;
-
         this.unused = null;
     }
-    end(line, char) {
+    end(line, char, operations) {
         this.endline = line;
         this.endchar = char;
         if(this.unused !== null && !(this.unused.line == this.endline - 1 && this.unused.character == this.endchar - 1)) {
-            global.currentOperator.diagnostics.push({
+            operations.diagnostics.push({
                 severity: global.server2.DiagnosticSeverity.Hint,
                 range: {
                     start: this.unused, 

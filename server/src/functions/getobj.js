@@ -41,7 +41,6 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
     let requireDot = false;
     let inParens = 0;
     while(currentIndex >= 0) {
-        
         if(inParens > 0) {
             if(document._content[currentIndex] == ')') {
                 inParens++;
@@ -54,7 +53,6 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
             }
         } else if(document._content[currentIndex] == '.') {
             returning.push(current);
-            
             current = '';
             requireDot = false;
         } else if(document._content[currentIndex] == ')' && current == '') {
@@ -62,23 +60,15 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         } else {
             const saved = document._content[currentIndex];
             if(whitespace.includes(saved)) {
-                
                 if(current != '') {
                     requireDot = true;
                 }
-                // if(saved == '\r') {
-                //     currentIndex--;
-                //     continue;
-                // }
             } else if(requireDot) {
-                
                 break;
             } else if(work.includes(saved)) {
-                
                 current = saved + current;
             } else {
                 if(saved == '}' && current == '') {
-                    
                     current = '}';
                 }
                 break;
@@ -88,13 +78,9 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
         positionCopy.character--;
         if(positionCopy.character == -1) {
             positionCopy.line--;
-            
             positionCopy.character = document._lineOffsets[positionCopy.line + 1] - document._lineOffsets[positionCopy.line] - 1;
         }
-        
-        
     }
     returning.push(current);
-    
     return [returning, positionCopy];
 }

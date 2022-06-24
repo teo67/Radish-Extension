@@ -6,7 +6,7 @@ const findInScope = require('./findInScope.js');
 const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
 const ReturnType = require('../classes/ReturnType.js');
-const handleDependency = (dep) => {
+const handleDependency = (dep, operations) => {
     if(dep.handled) {
         return; // this could save some time
     }
@@ -29,7 +29,7 @@ const handleDependency = (dep) => {
     if(dep.find.type == CompletionItemKind.Class) {
         const construct = findInVariable("constructor", foundSet.properties, null);
         if(construct !== null) { // this should pretty much always be true
-            global.currentOperator.constructordependencies.push(construct);
+            operations.constructordependencies.push(construct);
         }
         const saved = foundSet; 
         foundSet = construct;
@@ -39,7 +39,7 @@ const handleDependency = (dep) => {
         let proto = findInVariable("prototype", foundSet.properties, foundSet.inherited);
         if(proto === null) {
             proto = new Variable("prototype", CompletionItemKind.Variable);
-            proto.inner.detail = "[prototype object]";
+            proto.inner.detail = "[object]";
             proto.evaluated = true;
             foundSet.properties.push(proto);
             exporting.dep(foundSet, proto);
@@ -84,14 +84,14 @@ const handleDependency = (dep) => {
                         realSuper.inherited = _super.inherited;
                         realSuper.inner.detail = _super.inner.detail.length == 0 ? "[variable]" : _super.inner.detail;
                         for(const _dep of realSuper.deps) {
-                            handleDependency(_dep);
+                            handleDependency(_dep, operations);
                         }
                     }
                 }
                 _this.evaluated = true;
                 _this.ignore = false;
                 for(const _dep of _this.deps) {
-                    handleDependency(_dep);
+                    handleDependency(_dep, operations);
                 }
             }
         } else if(foundTarget.inner.label != "constructor") {
@@ -121,7 +121,7 @@ const handleDependency = (dep) => {
     if(foundSet.returns !== null) {
         foundTarget.returns = foundSet.returns;
         for(const _dep of foundTarget.returndeps) {
-            handleDependency(_dep);
+            handleDependency(_dep, operations);
         }
     }
     foundTarget.ignore = false;
@@ -129,7 +129,7 @@ const handleDependency = (dep) => {
     dep.handled = true;
     
     for(const dep of foundTarget.deps) {
-        handleDependency(dep);
+        handleDependency(dep, operations);
     }
     return;
 }

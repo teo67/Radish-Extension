@@ -1,3 +1,4 @@
+const { baseScope } = require('../global.js');
 const isInScope = require('./isInScope.js');
 const through = (scope, position, list = true) => {
     let returning = [];
@@ -6,11 +7,9 @@ const through = (scope, position, list = true) => {
         if(!isInScope(position, inner)) {
             continue;
         }
-        
         if(!list) {
             return through(inner, position, false);
         }
-
         const returned = through(inner, position);
         for(const ret of returned) {
             returning.push(ret);
@@ -28,6 +27,6 @@ const through = (scope, position, list = true) => {
     if(!list) {
         return scope;
     }
-    return returning;
+    return returning.concat(baseScope);
 }
 module.exports = through;

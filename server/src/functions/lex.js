@@ -108,13 +108,13 @@ const convert = (current, currentRaw) => {
     return new LexEntry(current, currentRaw);
 }
 
-const resolve = (current, currentRaw, startPos, reader) => {
+const resolve = (current, currentRaw, startPos, reader, operations) => {
     const savedline = startPos.line;
     const savedcol = startPos.character;
     startPos.line = reader.row;
     startPos.character = reader.col;
     if(savedline && savedcol && (current == TokenTypes.COMMENT || current == TokenTypes.SEMIS)) {
-        global.currentOperator.noHoverZones.push({
+        operations.noHoverZones.push({
             startline: savedline, 
             startchar: savedcol + 1,
             endline: startPos.line, 
@@ -124,9 +124,9 @@ const resolve = (current, currentRaw, startPos, reader) => {
 
     if([TokenTypes.SEMIS, TokenTypes.NONE, TokenTypes.COMMENT].includes(current)) {
         if(current == TokenTypes.SEMIS) {
-            global.currentOperator.currentDocs = currentRaw;
+            operations.currentDocs = currentRaw;
         }
-        global.currentOperator.lastTrim = {
+        operations.lastTrim = {
             line: startPos.line - 1, 
             character: startPos.character - 1
         };
@@ -135,10 +135,10 @@ const resolve = (current, currentRaw, startPos, reader) => {
     return convert(current, currentRaw);
 }
 
-const run = (reader) => {
-    global.currentOperator.currentDocs = null;
+const run = (reader, operations) => {
+    operations.currentDocs = null;
     if(reader.EndOfStream) {
-        global.currentOperator.lastTrim = {
+        operations.lastTrim = {
             line: reader.row - 1, 
             character: reader.col - 1
         };
@@ -167,7 +167,7 @@ const run = (reader) => {
                 reader.Read();
                 currentRaw += read;
             } else {
-                const resolved = resolve(current, currentRaw, startPos, reader);
+                const resolved = resolve(current, currentRaw, startPos, reader, operations);
                 if(resolved) {
                     return resolved;
                 }
@@ -177,7 +177,7 @@ const run = (reader) => {
             }
         }
     } while(!reader.EndOfStream);
-    const resolved = resolve(current, currentRaw, startPos, reader);
+    const resolved = resolve(current, currentRaw, startPos, reader, operations);
     if(resolved) {
         return resolved;
     }
