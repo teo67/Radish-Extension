@@ -15,11 +15,10 @@ module.exports = async () => {
             }
             const modPath = path.join(newPath, folder, 'main.rdsh');
             const read = await fs.readFile(modPath, { encoding: "utf-8" });
-            console.log('file://' + modPath);
             const newOps = new Operations(new CountingReader({
                 _content: read,
                 uri: 'file://' + modPath
-            }));
+            }), true);
             newOps.ParseScope();
             for(const dep of newOps.dependencies) {
                 handleDependency(dep, newOps);

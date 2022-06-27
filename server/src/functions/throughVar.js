@@ -16,6 +16,7 @@ const throughVar = (props, inherited, select = vari => {
                 returning.push(select(vari));
             }
         }
+        
     }
     return returning;
 }

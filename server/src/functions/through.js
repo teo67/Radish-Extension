@@ -1,6 +1,6 @@
 const { baseScope } = require('../global.js');
 const isInScope = require('./isInScope.js');
-const through = (scope, position, list = true) => {
+const through = (scope, position, list = true, bs = null) => {
     let returning = [];
     let blacklist = [];
     for(const inner of scope.innerscopes) {
@@ -8,9 +8,9 @@ const through = (scope, position, list = true) => {
             continue;
         }
         if(!list) {
-            return through(inner, position, false);
+            return through(inner, position, false, bs);
         }
-        const returned = through(inner, position);
+        const returned = through(inner, position, list, bs);
         for(const ret of returned) {
             returning.push(ret);
             blacklist.push(ret.inner.label);
@@ -18,7 +18,7 @@ const through = (scope, position, list = true) => {
         break;
     }
     if(list) {
-        for(const vari of scope.vars) {
+        for(const vari of scope.vars.concat(bs === null ? baseScope : bs)) {
             if(!vari.ignore && !blacklist.includes(vari.inner.label)) {
                 returning.push(vari);
             }
@@ -27,6 +27,6 @@ const through = (scope, position, list = true) => {
     if(!list) {
         return scope;
     }
-    return returning.concat(baseScope);
+    return returning;
 }
 module.exports = through;

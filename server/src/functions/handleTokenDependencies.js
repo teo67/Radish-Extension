@@ -8,8 +8,8 @@ module.exports = (tokendependencies, operations) => {
     let lastline = 0;
     let lastchar = 0;
     for(const dep of tokendependencies) {
-        const gotten = getFromRT(null, dep.reference, dep.before.concat(dep.path), dep.baseScope, null, dep.linkedscope, dep.imported, "", false, true);
-        if(dep.baseScope !== null || dep.imported !== null) {
+        const gotten = getFromRT(operations, null, dep.reference, dep.before.concat(dep.path), dep.baseScope, null, dep.linkedscope, dep.imported, dep.detail, false, true);
+        if(dep.baseScope !== null || dep.imported !== null || dep.detail.length > 0) {
             gotten.shift();
         }
         if(gotten === null || gotten.length > dep.before.length + dep.path.length) {

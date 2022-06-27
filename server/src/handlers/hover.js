@@ -24,7 +24,7 @@ const hover = new Response(params => {
         return null;
     }
     
-    const all = getResults(cs, realPosition, returned[0], returned[1]);
+    const all = getResults(stored.bs, cs, realPosition, returned[0], returned[1]);
     let final = null;
     if(returned[0][0] == "()") {
         final = all.returns;

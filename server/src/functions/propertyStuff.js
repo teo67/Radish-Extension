@@ -1,12 +1,8 @@
 
-const propertyStuff = (holder, held) => {
-    
+const propertyStuff = (operations, holder, held) => {
     if(holder.propertydeps[":" + held.inner.label] !== undefined) {
-        
-        
         for(const propdep of holder.propertydeps[":" + held.inner.label]) {
-            
-            exporting.dep(propdep);
+            exporting.dep(propdep, operations);
         }
     } 
 }

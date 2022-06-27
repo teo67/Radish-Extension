@@ -1,5 +1,5 @@
-const passInRT = (dep, rt, propertycreation = false) => {
-    return exporting.dep(dep, dep.reference, rt.raw, rt.baseScope, rt.inherited, rt.linkedscope, rt.imported, rt.detail, propertycreation);
+const passInRT = (operations, dep, rt, propertycreation = false) => {
+    return exporting.dep(operations, dep, dep.reference, rt.raw, rt.baseScope, rt.inherited, rt.linkedscope, rt.imported, rt.detail, propertycreation);
 }
 
 const exporting = {

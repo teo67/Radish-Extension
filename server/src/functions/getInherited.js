@@ -1,8 +1,7 @@
 const checkVar = require('./checkVar.js');
 const findInVariable = require('./findInVariable.js');
-const getInherited = (rt, dep, playground = false) => {
-    
-    let inherited = exporting.dep(dep, rt);
+const getInherited = (operations, rt, dep, playground = false) => {
+    let inherited = exporting.dep(operations, dep, rt);
     if(inherited === null) {
         // didnt work
         return null;

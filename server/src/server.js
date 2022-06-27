@@ -22,7 +22,7 @@ connection.onInitialize((params) => {
             textDocumentSync: languageserver.TextDocumentSyncKind.Incremental,
             completionProvider: {
                 resolveProvider: true,
-                triggerCharacters: ['.']
+                triggerCharacters: ['.', ':']
             },
             semanticTokensProvider: {
                 legend: {

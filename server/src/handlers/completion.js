@@ -32,7 +32,7 @@ const completion = new Response(_textDocumentPosition => {
         return [];
     }
     
-    const results = getResults(cs, _textDocumentPosition.position, returned[0], returned[1]);
+    const results = getResults(stored.bs, cs, _textDocumentPosition.position, returned[0], returned[1]);
     let all = throughVar(results.properties, results.inherited, vari => {
         return vari.inner;
     });

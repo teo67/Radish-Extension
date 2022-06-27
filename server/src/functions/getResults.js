@@ -1,7 +1,15 @@
 const through = require('./through.js');
 const findInVariable = require('./findInVariable.js');
-module.exports = (cs, position, returned, newPosition) => {
-    const allvars = through(cs, position);
+const findProto = (bs, searching) => {
+    for(const v of bs) {
+        if(v.inner.label == searching) {
+            return v;
+        }
+    }
+    throw `Unable to find ${searching}!`;
+}
+module.exports = (bs, cs, position, returned, newPosition) => {
+    const allvars = through(cs, position, true, bs);
     let current = allvars;
     let currentinherited = null;
     let currentreturn = null;
@@ -12,29 +20,55 @@ module.exports = (cs, position, returned, newPosition) => {
             currentreturn= null;
             break;
         }
-        if(i == returned.length - 1 && returned[i] == '}') {
-            current = through(cs, newPosition, false);
-            if(!(current.endline - 1 == newPosition.line && current.endchar == newPosition.character)) {
-                current = [];
-                currentinherited = null;
-                currentreturn = null;
-                break;
+        if(i == returned.length - 1) {
+            if(returned[i] == '}') {
+                current = through(cs, newPosition, false, bs);
+                if(!(current.endline - 1 == newPosition.line && current.endchar == newPosition.character)) {
+                    current = [];
+                    currentinherited = null;
+                    currentreturn = null;
+                    break;
+                }
+                if(current.returns === null) {
+                    current = current.vars;
+                    currentinherited = findProto(bs, 'Object');
+                    currentreturn = null;
+                } else {
+                    currentreturn = current.returns;
+                    current = [];
+                    currentinherited = findProto(bs, 'Function');
+                    
+                }
+                continue;
             }
-            current = current.vars;
-            currentinherited = null;
-            currentreturn= null;
-        } else {
-            const vari = returned[i] == "()" ? currentreturn : findInVariable(returned[i], current, currentinherited);
-            if(vari === null) {
-                current = [];
-                currentinherited = null;
-                currentreturn = null;
-                break;
+            let isOne = true;
+            if(returned[i] == '"') {
+                currentinherited = findProto(bs, 'String');
+            } else if(returned[i] == 'yes' || returned[i] == 'no') {
+                currentinherited = findProto(bs, 'Boolean');
+            } else if(returned[i].length > 0 && ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(returned[i][0])) {
+                currentinherited = findProto(bs, 'Number');
+            } else if(returned[i] == ']') {
+                currentinherited = findProto(bs, 'Array');
+            } else {
+                isOne = false;
             }
-            current = vari.properties;
-            currentinherited = vari.inherited;
-            currentreturn = vari.returns;
+            if(isOne) {
+                current = [];
+                currentreturn = null;
+                continue;
+            }
         }
+        const vari = returned[i] == "()" ? currentreturn : findInVariable(returned[i], current, currentinherited);
+        if(vari === null) {
+            current = [];
+            currentinherited = null;
+            currentreturn = null;
+            break;
+        }
+        current = vari.properties;
+        currentinherited = vari.inherited;
+        currentreturn = vari.returns;
     }
     return {
         properties: current, 

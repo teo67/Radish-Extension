@@ -51,7 +51,8 @@ const assess = new Response(async document => {
             chain: '',
             ref: document, 
             tokens: [], 
-            noHoverZones: []
+            noHoverZones: [],
+            bs: null
         };
         if(global.importCache[document.uri] !== undefined) {
             delete global.importCache[document.uri];
@@ -74,11 +75,12 @@ const assess = new Response(async document => {
     for(const dep of ops.dependencies) {
         handleDependency(dep, ops);
     }
-    console.log(`INFO: assess used ${ops.dependencies.length} dependencies and ${ops.numgets} gets.`);
+    console.log(`INFO: assess used ${ops.dependencies.length} dependencies.`);
     for(const dep of ops.constructordependencies) {
         handleConstDep(dep, ops);
     }
     global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies, ops);
+    global.cached[document.uri].bs = ops.bs;
     returning = { uri: document.uri, diagnostics: ops.diagnostics };
     ops.CleanUp();
     global.cached[document.uri].stamp = version2;

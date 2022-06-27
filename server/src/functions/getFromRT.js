@@ -6,10 +6,10 @@ const propertyStuff = require('./propertyStuff.js').run;
 const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
 
-const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = null, imported = null, detail = "", propertycreation = false, playground = false) => { // false = cancel
+const getFromRT = (operations, dep, ref, raw, baseScope, inherited = null, linkedscope = null, imported = null, detail = "", propertycreation = false, playground = false) => { // false = cancel
     let _inherited = null;
     if(inherited !== null) {
-        _inherited = exporting.dep(inherited, dep, playground);
+        _inherited = exporting.dep(operations, inherited, dep, playground);
         if(_inherited === null) {
             return null;
         }
@@ -19,28 +19,39 @@ const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = nul
     let ignoreFirst = false;
     if(imported !== null) {
         currentVar = imported;
-    } else if(baseScope === null) { 
-        if(raw.length == 0) {
-            currentVar = new Variable("", CompletionItemKind.Variable); // return a blank variable
+    } else {
+        const dict = {
+            'stri': 'String', 
+            'tool': 'Function', 
+            'obje': 'Object', 
+            'numb': 'Number', 
+            'bool': 'Boolean',
+            'arra': 'Array'
+        };
+        const res = dict[detail.substring(1, 5)];
+        if((detail.length >= 5 && (res !== undefined)) || raw.length == 0 || baseScope !== null || _inherited !== null) {
+            currentVar = new Variable("", CompletionItemKind.Variable);
             currentVar.evaluated = true;
-            currentVar.inner.detail = detail;
             if(linkedscope !== null) {
                 currentVar.returns = linkedscope.returns;
             }
+            if(_inherited !== null) {
+                currentVar.inherited = _inherited;
+            } else if(res !== undefined) {
+                currentVar.inherited = operations.protos[res];
+            }
+            if(baseScope !== null) {
+                currentVar.properties = baseScope;
+            }
+            currentVar.inner.detail = detail;
         } else {
             if(linkedscope !== null && raw[0] == "()") {
                 currentVar = linkedscope.returns;
             } else {
-                currentVar = findInScope(raw[0], ref);
+                currentVar = findInScope(raw[0], ref, operations.bs);
             }
             ignoreFirst = true;
         }
-    } else {
-        currentVar = new Variable("", CompletionItemKind.Variable);
-        currentVar.properties = baseScope;
-        currentVar.inherited = _inherited;
-        currentVar.inner.detail = detail;
-        currentVar.evaluated = true;
     }
     for(let i = (ignoreFirst ? 1 : 0); i < raw.length; i++) {
         let arg1 = null;
@@ -55,21 +66,18 @@ const getFromRT = (dep, ref, raw, baseScope, inherited = null, linkedscope = nul
         before.push(currentVar);
         currentVar = (raw[i] == "()") ? currentVar.returns : findInVariable(raw[i], currentVar.properties, currentVar.inherited);
     }
-    if(currentVar === null) {
-        if(before.length > 0 && raw.length > 0) {
-            if(propertycreation && raw[raw.length - 1] != "()") {
-                const newprop = new Variable(raw[raw.length - 1], CompletionItemKind.Variable, "[variable]");
-                before[before.length - 1].properties.push(newprop);
-                
-                propertyStuff(before[before.length - 1], newprop);
-                currentVar = newprop;
-            } else {
-                checkVar(null, dep, before[before.length - 1], raw[raw.length - 1], playground);
-                return playground ? before : null;
-            }
-        } else {
+    if(before.length > 0 && raw.length > 0) {
+        if(propertycreation && raw[raw.length - 1] != "()" && (currentVar === null || !before[before.length - 1].properties.includes(currentVar))) {
+            const newprop = new Variable(raw[raw.length - 1], CompletionItemKind.Variable, "[variable]");
+            before[before.length - 1].properties.push(newprop);
+            propertyStuff(operations, before[before.length - 1], newprop);
+            currentVar = newprop;
+        } else if(currentVar === null) {
+            checkVar(null, dep, before[before.length - 1], raw[raw.length - 1], playground);
             return playground ? before : null;
         }
+    } else if(currentVar === null) {
+        return playground ? before : null;
     }
     if(playground && currentVar.ignore) {
         return before;

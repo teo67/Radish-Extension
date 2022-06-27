@@ -10,7 +10,7 @@ const handleDependency = (dep, operations) => {
     if(dep.handled) {
         return; // this could save some time
     }
-    const found = passInRT(dep, dep.target, true);
+    const found = passInRT(operations, dep, dep.target, true);
     if(found === null) { // no var or failed somewhere
         return;
     }
@@ -18,7 +18,7 @@ const handleDependency = (dep, operations) => {
     if(foundTarget.evaluated && !dep.override) { // already eval'd
         return;
     }
-    let foundSet = passInRT(dep, dep.find);
+    let foundSet = passInRT(operations, dep, dep.find);
     if(foundSet === null) { 
         return;
     }
@@ -42,35 +42,34 @@ const handleDependency = (dep, operations) => {
             proto.inner.detail = "[object]";
             proto.evaluated = true;
             foundSet.properties.push(proto);
-            exporting.dep(foundSet, proto);
+            exporting.dep(operations, foundSet, proto);
         }
         for(const newprop of saved.properties) {
             
             if(newprop.isStatic) {
                 foundSet.properties.push(newprop);
-                exporting.dep(foundSet, newprop);
+                exporting.dep(operations, foundSet, newprop);
             } else {
                 proto.properties.push(newprop);
-                exporting.dep(proto, newprop);
+                exporting.dep(operations, proto, newprop);
             }
         }
         
-        proto.inherited = saved.inherited;
+        proto.inherited = saved.inherited === null ? operations.protos.Object : saved.inherited;
     }
     if(dep.find.linkedscope !== null) {
         if(found.length > 1) {
             const _this = findInScope("this", dep.find.linkedscope);
-            
             if(_this !== null) {
                 const _super = found[found.length - 2].inherited !== null ? findInVariable("constructor", found[found.length - 2].inherited.properties, null) : null;
                 if(_super !== null && !checkVar(_super, dep)) { // if there is a constructor but it isn't evaluated, save it
                     return;
                 } 
-                _this.inner.detail = "[object reference]";
+                _this.inner.detail = "[object]";
                 _this.properties = found[found.length - 2].properties;
-                _this.inherited = found[found.length - 2].inherited;
+                _this.inherited = found[found.length - 2].inherited;// === null ? global.protos.OBJECT : found[found.length - 2].inherited;
                 for(const newprop of _this.properties) {
-                    exporting.dep(_this, newprop);
+                    exporting.dep(operations, _this, newprop);
                 }
                 if(_super !== null) {
                     const realSuper = findInScope("super", dep.find.linkedscope);
@@ -79,7 +78,7 @@ const handleDependency = (dep, operations) => {
                         realSuper.ignore = false;
                         realSuper.properties = _super.properties;
                         for(const newprop of realSuper.properties) {
-                            exporting.dep(realSuper, newprop);
+                            exporting.dep(operations, realSuper, newprop);
                         }
                         realSuper.inherited = _super.inherited;
                         realSuper.inner.detail = _super.inner.detail.length == 0 ? "[variable]" : _super.inner.detail;
@@ -105,7 +104,7 @@ const handleDependency = (dep, operations) => {
     foundTarget.properties = foundSet.properties;
     for(const prop of foundSet.properties) {
         //foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
-        exporting.dep(foundTarget, prop);
+        exporting.dep(operations, foundTarget, prop);
     }
     if(foundSet.inner.detail.length == 0) {
         if(foundTarget.inner.detail.length == 0) {
@@ -123,6 +122,9 @@ const handleDependency = (dep, operations) => {
         for(const _dep of foundTarget.returndeps) {
             handleDependency(_dep, operations);
         }
+    }
+    if(foundTarget == operations.protos.Object) {
+        foundTarget.inherited = null; // #ExceptionThatProvesTheRule amiright
     }
     foundTarget.ignore = false;
     foundTarget.evaluated = true;

@@ -10,6 +10,7 @@ for(let i = 0; i < nums.length; i++) {
     work.push(nums[i]);
 }
 work.push('_');
+const end = ['}', ']', '"'];
 const whitespace = [' ', '\n', '\r', '\xa0', '\t'];
 module.exports = (document, noHoverZones, position, isHovering = false) => {
     if(document._lineOffsets === undefined || document._content === undefined) {
@@ -51,7 +52,7 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
                     // current is still blank at this point, so a dot will invalidate (which is good)
                 }
             }
-        } else if(document._content[currentIndex] == '.') {
+        } else if(document._content[currentIndex] == '.' || document._content[currentIndex] == ':') {
             returning.push(current);
             current = '';
             requireDot = false;
@@ -68,8 +69,8 @@ module.exports = (document, noHoverZones, position, isHovering = false) => {
             } else if(work.includes(saved)) {
                 current = saved + current;
             } else {
-                if(saved == '}' && current == '') {
-                    current = '}';
+                if(end.includes(saved) && current == '') {
+                    current = saved;
                 }
                 break;
             }
