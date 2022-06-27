@@ -2,7 +2,6 @@ const languageserver = require("vscode-languageserver/node");
 const server2 = require("vscode-languageserver");
 const textdocument = require("vscode-languageserver-textdocument");
 const Variable = require('./classes/Variable.js');
-const ReturnType = require('./classes/returnType.js');
 const connection = (0, languageserver.createConnection)(languageserver.ProposedFeatures.all);
 const documents = new languageserver.TextDocuments(textdocument.TextDocument);
 const documentSettings = new Map();

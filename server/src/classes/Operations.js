@@ -1,6 +1,7 @@
 const lex = require('../functions/lex.js');
 const Scope = require('./Scope.js');
 const Variable = require('./Variable.js');
+const url = require('url');
 // global.server2, global.cached, global.importCache, global.connection
 const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
@@ -746,9 +747,9 @@ class Operations {
                     }
                     if(cache === undefined && path.startsWith("file://")) {
                         let result;
-                        try { 
-                            result = fs.readFileSync(path.slice(6), { encoding: 'utf-8' });
-                        } catch {
+                        try {
+                            result = fs.readFileSync(url.fileURLToPath(path), { encoding: 'utf-8' });
+                        } catch(e) {
                             result = null;
                         }
                         if(result !== null) {
