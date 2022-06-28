@@ -8,7 +8,7 @@ const findProto = (bs, searching) => {
     }
     throw `Unable to find ${searching}!`;
 }
-module.exports = (bs, cs, position, returned, newPosition) => {
+module.exports = (bs, cs, position, returned, newPosition, arrayEnds) => {
     const allvars = through(cs, position, true, bs);
     let current = allvars;
     let currentinherited = null;
@@ -49,7 +49,13 @@ module.exports = (bs, cs, position, returned, newPosition) => {
             } else if(returned[i].length > 0 && ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(returned[i][0])) {
                 currentinherited = findProto(bs, 'Number');
             } else if(returned[i] == ']') {
-                currentinherited = findProto(bs, 'Array');
+                let found = false;
+                for(const end of arrayEnds) {
+                    if(end.line == newPosition.line && end.character == newPosition.character) {
+                        found = true;
+                    }
+                }
+                currentinherited = found ? findProto(bs, 'Array') : null;
             } else {
                 isOne = false;
             }

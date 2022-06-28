@@ -10,32 +10,41 @@ const handleDependency = (dep, operations) => {
     if(dep.handled) {
         return; // this could save some time
     }
+    console.log('starting:');
+    console.log(dep.target.raw);
+    console.log(dep.find.raw);
     const found = passInRT(operations, dep, dep.target, true);
     if(found === null) { // no var or failed somewhere
+        console.log('no found');
         return;
     }
     const foundTarget = found[found.length - 1];
-    if(foundTarget.evaluated && !dep.override) { // already eval'd
+    if(foundTarget.evaluated || (foundTarget.lock && !dep.override)) { // already eval'd
+        console.log('already evald');
         return;
     }
     let foundSet = passInRT(operations, dep, dep.find);
     if(foundSet === null) { 
+        console.log('no set');
         return;
     }
     if(!checkVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc  
+        console.log('set not evald');
         return;
     }
     foundSet = foundSet[foundSet.length - 1];
     if(dep.find.type == CompletionItemKind.Class) {
+        console.log('starting class');
         const construct = findInVariable("constructor", foundSet.properties, null);
-        if(construct !== null) { // this should pretty much always be true
-            operations.constructordependencies.push(construct);
+        if(construct === null) {
+            return;
         }
         const saved = foundSet; 
         foundSet = construct;
         if(!checkVar(construct, dep)) {
             return;
         } 
+        console.log(`found: ${construct.inner.detail}`);
         let proto = findInVariable("prototype", foundSet.properties, foundSet.inherited);
         if(proto === null) {
             proto = new Variable("prototype", CompletionItemKind.Variable);
@@ -45,7 +54,6 @@ const handleDependency = (dep, operations) => {
             exporting.dep(operations, foundSet, proto);
         }
         for(const newprop of saved.properties) {
-            
             if(newprop.isStatic) {
                 foundSet.properties.push(newprop);
                 exporting.dep(operations, foundSet, newprop);

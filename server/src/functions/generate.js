@@ -4,7 +4,6 @@ const path = require('path');
 const Operations = require('../classes/Operations.js');
 const CountingReader = require('../classes/CountingReader.js');
 const handleDependency = require('./handleDependency.js').run;
-const handleConstDep = require('./handleConstDep.js');
 const url = require('url');
 module.exports = async () => {
     try {
@@ -24,9 +23,6 @@ module.exports = async () => {
             newOps.ParseScope();
             for(const dep of newOps.dependencies) {
                 handleDependency(dep, newOps);
-            }
-            for(const dep of newOps.constructordependencies) {
-                handleConstDep(dep, newOps);
             }
             if(folder !== 'PROTOTYPES') {
                 newOps.cs.returns.inner.label = folder;

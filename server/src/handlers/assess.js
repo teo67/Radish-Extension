@@ -4,7 +4,6 @@ const Operations = require('../classes/Operations.js');
 const Variable = require('../classes//Variable.js');
 const Scope = require('../classes/Scope.js');
 const Response = require('./Response.js');
-const handleConstDep = require('../functions/handleConstDep.js');
 const handleDependency = require('../functions/handleDependency.js').run;
 const handleTokenDependencies = require('../functions/handleTokenDependencies');
 const printInDetail = (any, numspaces) => {
@@ -52,7 +51,8 @@ const assess = new Response(async document => {
             ref: document, 
             tokens: [], 
             noHoverZones: [],
-            bs: null
+            bs: null, 
+            arrayEnds: []
         };
         if(global.importCache[document.uri] !== undefined) {
             delete global.importCache[document.uri];
@@ -76,11 +76,9 @@ const assess = new Response(async document => {
         handleDependency(dep, ops);
     }
     console.log(`INFO: assess used ${ops.dependencies.length} dependencies.`);
-    for(const dep of ops.constructordependencies) {
-        handleConstDep(dep, ops);
-    }
     global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies, ops);
     global.cached[document.uri].bs = ops.bs;
+    global.cached[document.uri].arrayEnds = ops.arrayEnds;
     returning = { uri: document.uri, diagnostics: ops.diagnostics };
     ops.CleanUp();
     global.cached[document.uri].stamp = version2;

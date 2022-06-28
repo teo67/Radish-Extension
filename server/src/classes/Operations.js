@@ -11,15 +11,14 @@ const ReturnType = require('./ReturnType.js');
 const fs = require('fs');
 const CountingReader = require('./CountingReader.js');
 const handleDependency = require('../functions/handleDependency.js').run;
-const handleConstDep = require('../functions/handleConstDep.js');
 const copy = require('../functions/copy.js');
 class Dependency {
     constructor(_target, _reference, _find, _override = false) { // null for a token dep
         this.target = _target; // rt
         this.reference = _reference; // reference scope to begin search
         this.find = _find; // rt
-        this.override = _override; // overide already eval'd
         this.handled = false;
+        this.override = _override;
     }
 }
 class TokenDependency {
@@ -51,7 +50,6 @@ class Operations {
         this.tokendependencies = [];
         this.noHoverZones = [];
         this.diagnostics = [];
-        this.constructordependencies = [];
         this.lastTrim = {
             line: 0, 
             character: 0
@@ -64,6 +62,7 @@ class Operations {
                 this.protos[vari.inner.label] = vari;
             }
         }
+        this.arrayEnds = [];
     }
 
     CleanUp() {
@@ -74,7 +73,9 @@ class Operations {
         this.tokendependencies = [];
         this.noHoverZones = [];
         this.diagnostics = [];
-        this.constructordependencies = [];
+        this.bs = [];
+        this.protos = {};
+        this.arrayEnds = [];
     }
 
     AddDiagnostic(message, start = this.lastTrim, end = {
@@ -555,8 +556,8 @@ class Operations {
             if(returned.Val == "dig" || returned.Val == "d") {
                 const doc = this.currentDocs;
                 let next = this.Read();
-                let prop = false;
                 let skip = false;
+                let prop = false;
                 let _static = false;
                 while(next.Type == TokenTypes.OPERATOR && (next.Val == "public" || next.Val == "private" || next.Val == "protected" || next.Val == "static")) {
                     if(next.Val == "static") {
@@ -637,10 +638,9 @@ class Operations {
                             newvar.params = parsed[1];
                         }
                         if(prop) {
-                            newvar.evaluated = true;
+                            newvar.lock = true;
                         }
                         newvar.isStatic = _static;
-                        
                         this.cs.addVar(newvar);
                     }
                     
@@ -761,9 +761,6 @@ class Operations {
                             for(const dep of newOps.dependencies) {
                                 handleDependency(dep, newOps);
                             }
-                            for(const dep of newOps.constructordependencies) {
-                                handleConstDep(dep, newOps);
-                            }
                             global.importCache[path] = newOps.cs.returns;
                             cache = newOps.cs.returns;
                             global.connection.sendDiagnostics({ uri: path, diagnostics: newOps.diagnostics });
@@ -861,6 +858,10 @@ class Operations {
             if(returned.Val == "[") {
                 this.ParseLi();
                 this.RequireSymbol("]");
+                this.arrayEnds.push({
+                    line: this.Row - 1,
+                    character: this.Col - 1
+                });
                 return new ReturnType(CompletionItemKind.Variable, "[array]");
             }
             if(returned.Val == "{") {

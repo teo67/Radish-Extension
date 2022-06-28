@@ -78,7 +78,7 @@ const signature = new Response(s => {
     if(returned === null) {
         return default1;
     }
-    const all = getResults(stored.bs, cs, positionCopy, returned[0], returned[1]);
+    const all = getResults(stored.bs, cs, positionCopy, returned[0], returned[1], stored.arrayEnds);
     let final = null;
     if(returned[0][0] == "()") {
         final = all.returns;
