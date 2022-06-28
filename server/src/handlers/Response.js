@@ -6,13 +6,13 @@ class Response {
     }
     async execute(arg) {
         try {
-            console.log(`Starting ${this.name}...`);
+            //console.log(`Starting ${this.name}...`);
             const returned = await this._execute(arg);
-            console.log(`Completed ${this.name}!`);
+            //console.log(`Completed ${this.name}!`);
             return returned;
         } catch(e) {
             console.log(`Response ${this.name} failed!`);
-            console.log(e);
+            //console.log(e);
             return this.default;
         }
     }

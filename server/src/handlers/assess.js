@@ -75,7 +75,6 @@ const assess = new Response(async document => {
     for(const dep of ops.dependencies) {
         handleDependency(dep, ops);
     }
-    console.log(`INFO: assess used ${ops.dependencies.length} dependencies.`);
     global.cached[document.uri].tokens = handleTokenDependencies(ops.tokendependencies, ops);
     global.cached[document.uri].bs = ops.bs;
     global.cached[document.uri].arrayEnds = ops.arrayEnds;

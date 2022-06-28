@@ -9,11 +9,11 @@ const tokens = new Response(async change => {
     let stamp = stored.stamp;
     let numWaits = 0;
     while(currentVers > stamp) {
-        console.log("token request is waiting for an updated array of tokens from the latest assess request...");
+        //console.log("token request is waiting for an updated array of tokens from the latest assess request...");
         await new Promise((resolve, reject) => setTimeout(resolve, assessTime * 2));
         numWaits++;
         if(numWaits > 10) {
-            console.log("token request cancelled, could not find updated token array!");
+            console.log("Token request cancelled, could not find updated token array!");
             return {data:[]};
         }
         stamp = stored.stamp;

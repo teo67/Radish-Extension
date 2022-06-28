@@ -49,14 +49,9 @@ connection.onInitialize((params) => {
     return result;
 });
 connection.onInitialized(() => {
-    console.log("initializing");
+    console.log("Radish Language Server is starting...");
     if (capabilities.configuration) {
         connection.client.register(languageserver.DidChangeConfigurationNotification.type, undefined);
-    }
-    if (capabilities.workspaceFolder) {
-        connection.workspace.onDidChangeWorkspaceFolders(_event => {
-            console.log('Workspace folder change event received.');
-        });
     }
 });
 
@@ -64,27 +59,12 @@ const defaultSettings = { maxNumberOfProblems: 1000 };
 let globalSettings = defaultSettings;
 
 connection.onDidChangeConfiguration(change => {
-    console.log("changed config");
     if (capabilities.configuration) {
         documentSettings.clear();
     } else {
         globalSettings = ((change.settings.radishLanguageServer || defaultSettings));
     }
 });
-function getDocumentSettings(resource) {
-    if (!capabilities.configuration) {
-        return Promise.resolve(globalSettings);
-    }
-    let result = documentSettings.get(resource);
-    if (!result) {
-        result = connection.workspace.getConfiguration({
-            scopeUri: resource,
-            section: 'radishLanguageServer'
-        });
-        documentSettings.set(resource, result);
-    }
-    return result;
-}
 documents.onDidClose(e => {
     documentSettings.delete(e.document.getText());
 });
@@ -97,10 +77,6 @@ documents.onDidChangeContent(change => {
 });
 connection.onSignatureHelp(s => {
     return signature.execute(s);
-});
-connection.onDidChangeWatchedFiles(_change => {
-    //assess
-    console.log('We received a file change event');
 });
 connection.onCompletion(c => {
     return completion.execute(c);
