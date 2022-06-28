@@ -126,9 +126,9 @@ class Operations {
         this.PrevRow = this.reader.row;
         return lex(this.reader, this);
     }
-    ParseScope(setthis = false, setfun = null) { //returns scope
+    ParseScope(scope = null, setthis = false, setfun = false) { //returns scope
         const saved = this.cs;
-        const newscope = setfun === null ? new Scope(this.Row, this.Col, this.cs) : setfun;
+        const newscope = scope === null ? new Scope(this.Row, this.Col, this.cs) : scope;
         this.cs = newscope;
         if(saved === null) {
             const filereturn = new Variable("(anonymous file harvest)", CompletionItemKind.Variable, "[variable]");
@@ -137,7 +137,7 @@ class Operations {
         if(setthis) {
             this.currentthis.properties = newscope.vars;
         }
-        if(setfun !== null) {
+        if(setfun) {
             this.currentFun = newscope;
         }
         let read = this.Read();
@@ -608,16 +608,9 @@ class Operations {
                                             _cs, 
                                             new ReturnType(CompletionItemKind.Variable, "[object]", [], this.currentthis.properties, this.currentthis.inherited)
                                         ));
-                                        if(next.Val == "constructor" && this.currentthis.inherited) {
-                                            this.dependencies.push(new Dependency(
-                                                new ReturnType(ReturnType.Reference, "", ["super"]), 
-                                                _cs, 
-                                                new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
-                                            ));
-                                        }
                                     }
                                     const prevFun = this.currentFun;
-                                    this.ParseScope(false, _cs);
+                                    this.ParseScope(_cs, false, true);
                                     this.currentFun = prevFun;
                                     this.RequireSymbol("}");
                                 } else {
@@ -694,18 +687,11 @@ class Operations {
                         _cs, 
                         new ReturnType(CompletionItemKind.Variable, "[object]", [], this.currentthis.properties, this.currentthis.inherited)
                     ));
-                    if(this.currentthis.inherited) {
-                        this.dependencies.push(new Dependency(
-                            new ReturnType(ReturnType.Reference, "", ["super"]), 
-                            _cs, 
-                            new ReturnType(ReturnType.Reference, "", ["constructor"], [], this.currentthis.inherited)
-                        ));
-                    }
                 }
                 const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[any]");
                 _cs.returns = returns;
                 const prevFun = this.currentFun;
-                this.ParseScope(false, _cs);
+                this.ParseScope(_cs, false, true);
                 this.currentFun = prevFun;
                 this.RequireSymbol("}");
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs);
@@ -787,22 +773,13 @@ class Operations {
                 this.currentthis = {
                     inherited: inherited // FIX
                 };
-                const cs = this.ParseScope(true);
+                const cs = new Scope(this.Row, this.Col, this.cs);
+                const constr = new Variable("constructor", CompletionItemKind.Variable);
+                cs.vars.push(constr);
+                this.ParseScope(cs, true);
                 this.currentthis = prevthis;
-                let hasConstr = false;
-                for(const vari of cs.vars) {
-                    if(vari.inner.label == "constructor") {
-                        hasConstr = vari;
-                        break;
-                    }
-                }
-                if(!hasConstr) {
-                    hasConstr = new Variable("constructor", CompletionItemKind.Function);
-                    hasConstr.evaluated = true;
-                    hasConstr.inner.detail = "[tool] {}";
-                    hasConstr.inherited = this.protos.Function;
-                    cs.vars.push(hasConstr);
-                }
+                constr.addsuper = inherited;
+                this.dependencies.push(new Dependency(new ReturnType(CompletionItemKind.Variable, "", [], null, null, null, constr), this.cs, new ReturnType(CompletionItemKind.Function, "[tool] {}")));
                 this.RequireSymbol("}");
                 return new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
             }
@@ -869,7 +846,7 @@ class Operations {
                 this.currentthis = {
                     inherited: null
                 };
-                const cs = this.ParseScope(true);
+                const cs = this.ParseScope(null, true);
                 this.RequireSymbol("}");
                 this.currentthis = prevthis;
                 return new ReturnType(CompletionItemKind.Variable, "[object]", [], cs.vars);

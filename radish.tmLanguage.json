@@ -82,7 +82,7 @@
 		"variables": {
 			"patterns": [{
 				"name": "variable.language.radish",
-				"match": "\\b(this|super)\\b"
+				"match": "\\b(this|super|constructor|prototype)\\b"
 			}, {
 				"name": "entity.name.function.radish",
 				"match": "([a-zA-Z\\_\\$])([a-zA-Z0-9\\_\\$]*?)(?=\\()"

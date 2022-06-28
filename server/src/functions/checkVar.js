@@ -1,6 +1,5 @@
 module.exports = (vari, dep, previous = null, searching = "", playground = false) => {
     if(vari === null) {
-        
         if(previous !== null && !playground) {
             if(searching == "()") {
                 previous.returndeps.push(dep);

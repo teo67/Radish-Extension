@@ -7,44 +7,51 @@ const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
 const ReturnType = require('../classes/ReturnType.js');
 const handleDependency = (dep, operations) => {
+    // console.log('starting');
+    // console.log(dep.target.raw);
+    // console.log(dep.find.raw);
     if(dep.handled) {
+        //console.log('alr handled');
         return; // this could save some time
     }
-    console.log('starting:');
-    console.log(dep.target.raw);
-    console.log(dep.find.raw);
     const found = passInRT(operations, dep, dep.target, true);
     if(found === null) { // no var or failed somewhere
-        console.log('no found');
+        //console.log('no found');
         return;
     }
     const foundTarget = found[found.length - 1];
     if(foundTarget.evaluated || (foundTarget.lock && !dep.override)) { // already eval'd
-        console.log('already evald');
+        //console.log('alr evald');
         return;
     }
     let foundSet = passInRT(operations, dep, dep.find);
     if(foundSet === null) { 
-        console.log('no set');
+        //console.log('no set');
         return;
     }
     if(!checkVar(foundSet[foundSet.length - 1], dep)) { // if null or not eval'd, etc  
-        console.log('set not evald');
+        //console.log('set not evald');
         return;
     }
+    //console.log('success');
     foundSet = foundSet[foundSet.length - 1];
     if(dep.find.type == CompletionItemKind.Class) {
-        console.log('starting class');
-        const construct = findInVariable("constructor", foundSet.properties, null);
-        if(construct === null) {
-            return;
+        let construct = null;
+        for(let i = 0; i < foundSet.properties.length; i++) {
+            if(foundSet.properties[i].inner.label == "constructor") {
+                construct = foundSet.properties[i];
+                if(construct === null) {
+                    return;
+                }
+                if(!checkVar(construct, dep)) {
+                    return;
+                }
+                foundSet.properties.splice(i, 1);
+                break;
+            }
         }
         const saved = foundSet; 
         foundSet = construct;
-        if(!checkVar(construct, dep)) {
-            return;
-        } 
-        console.log(`found: ${construct.inner.detail}`);
         let proto = findInVariable("prototype", foundSet.properties, foundSet.inherited);
         if(proto === null) {
             proto = new Variable("prototype", CompletionItemKind.Variable);
@@ -69,51 +76,44 @@ const handleDependency = (dep, operations) => {
         if(found.length > 1) {
             const _this = findInScope("this", dep.find.linkedscope);
             if(_this !== null) {
-                const _super = found[found.length - 2].inherited !== null ? findInVariable("constructor", found[found.length - 2].inherited.properties, null) : null;
-                if(_super !== null && !checkVar(_super, dep)) { // if there is a constructor but it isn't evaluated, save it
-                    return;
-                } 
                 _this.inner.detail = "[object]";
                 _this.properties = found[found.length - 2].properties;
                 _this.inherited = found[found.length - 2].inherited;// === null ? global.protos.OBJECT : found[found.length - 2].inherited;
-                for(const newprop of _this.properties) {
-                    exporting.dep(operations, _this, newprop);
-                }
-                if(_super !== null) {
-                    const realSuper = findInScope("super", dep.find.linkedscope);
-                    if(realSuper !== null) {
-                        realSuper.evaluated = true;
-                        realSuper.ignore = false;
-                        realSuper.properties = _super.properties;
-                        for(const newprop of realSuper.properties) {
-                            exporting.dep(operations, realSuper, newprop);
-                        }
-                        realSuper.inherited = _super.inherited;
-                        realSuper.inner.detail = _super.inner.detail.length == 0 ? "[variable]" : _super.inner.detail;
-                        for(const _dep of realSuper.deps) {
-                            handleDependency(_dep, operations);
-                        }
-                    }
-                }
                 _this.evaluated = true;
                 _this.ignore = false;
                 for(const _dep of _this.deps) {
                     handleDependency(_dep, operations);
                 }
             }
-        } else if(foundTarget.inner.label != "constructor") {
-            const _super = findInScope("super", dep.find.linkedscope);
-            _super.ignore = true;
-            _super.evaluated = true; // cancel all possible deps on super, we're not gonna use it
         }
-    } 
+        if(foundTarget.addsuper) {
+            let _super = passInRT(operations, dep, foundTarget.addsuper);
+            if(_super === null) { 
+                return;
+            }
+            _super = _super[_super.length - 1];
+            if(!checkVar(_super, dep)) { // if null or not eval'd, etc  
+                return;
+            }
+            const supervar = findInScope("super", dep.find.linkedscope); 
+            if(supervar !== null) {
+                supervar.inner.detail = _super.inner.detail;
+                supervar.properties = _super.properties;
+                supervar.inherited = _super.inherited;
+                supervar.inner.kind = CompletionItemKind.Function;
+                supervar.evaluated = true;
+                supervar.ignore = false;
+                supervar.params = _super.params;
+                supervar.returns = _super.returns;
+                for(const _dep of supervar.deps) {
+                    handleDependency(_dep, operations);
+                }
+            }
+        }
+    }
     
     foundTarget.inherited = foundSet.inherited;
     foundTarget.properties = foundSet.properties;
-    for(const prop of foundSet.properties) {
-        //foundTarget.properties.push(prop); // transfer props manually to keep pointers to scope
-        exporting.dep(operations, foundTarget, prop);
-    }
     if(foundSet.inner.detail.length == 0) {
         if(foundTarget.inner.detail.length == 0) {
             foundTarget.inner.detail = '[variable]';

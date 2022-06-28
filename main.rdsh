@@ -1,7 +1,10 @@
-d a p {
-	d b p 0
+d A p class {
+	d constructor p t() {
+		holler("abc")
+	}
 }
-if(yes) {
-	d a p 0
-	a.bnull # no b property - fix: maintain all variables as possibilities during autocomplete and narrow them down as you go instead of automatically choosing the 'best' one #
-} # fixed ! #
+A.prototype.constructor p t() {
+	holler("hello world!")
+}
+new A()
+new A.prototype.constructor()
