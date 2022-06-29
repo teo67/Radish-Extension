@@ -264,6 +264,7 @@ class Operations {
         let returningTokens = [];
         let returningDeps = [];
         let read = this.Read();
+        let fill = false;
         if(read.Type == TokenTypes.SYMBOL && (read.Val == "]" || read.Val == ")")) { // empty list
             this.Stored = read;
             return {
@@ -277,7 +278,14 @@ class Operations {
             this.Stored = read;
             if(params) {
                 const doc = this.currentDocs;
-                const key = this.Read();
+                let key = this.Read();
+                if(fill) {
+                    this.AddDiagnostic("If a function contains a fill parameter, it must be the last parameter in the list!");
+                }
+                if(key.Type == TokenTypes.OPERATOR && key.Val == "fill") {
+                    fill = true;
+                    key = this.Read();
+                }
                 if(key.Type != TokenTypes.KEYWORD) {
                     this.AddDiagnostic("Expecting a function parameter!");
                 } else {
@@ -299,8 +307,15 @@ class Operations {
                         isOptional = true;
                     } else {
                         this.Stored = next;
+                        if(fill) {
+                            newvar.inner.detail = "[array]";
+                            newvar.inherited = this.protos.Array;
+                            newvar.evaluated = true;
+                        }
                     }
-                    newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
+                    if(!fill) {
+                        newvar.inner.detail = isOptional ? "[optional variable]" : "[variable]";
+                    }
                     if(doc !== null && doc.length > 2) {
                         const parsed = parseDoc(doc);
                         newvar.inner.documentation = parsed[0];

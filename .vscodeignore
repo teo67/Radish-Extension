@@ -4,3 +4,4 @@ server
 .gitmodules
 main.rdsh
 node_modules
+prep.bat

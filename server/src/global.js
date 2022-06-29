@@ -18,7 +18,7 @@ const autoCompleteDefaults = [
     "if", "elseif", "else", 
     "while", "for", 
     "dig", "d", "tool", "t", "plant", "p", "uproot",
-    "harvest", "h", "cancel", "continue", "end",
+    "harvest", "h", "cancel", "continue", "end", "fill",
     "new", "null", "class",
     "public", "private", "protected", "static",
     "try", "catch", "throw", "import", "all"
