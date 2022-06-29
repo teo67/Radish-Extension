@@ -9,7 +9,6 @@
     <li>Hover descriptions - hover over any variable or property to find info about its value and/or documentation.</li>
     <li>Error reporting - the RLE provides necessary info for syntax errors, code after breaking statements, and unused variables.</li>
 </ul>
-<p>Note: in order to give your .rdsh files an icon image, click 'set file icon theme' after installing this extension.</p>
 <h3>Standard Library</h3>
 <p>This language extension will keep up to date with the various variables included in the Radish library, along with all of the documentation.</p>
 <h3>Source Code</h3>

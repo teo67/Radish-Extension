@@ -55,7 +55,7 @@ connection.onInitialized(() => {
     }
 });
 
-const defaultSettings = { maxNumberOfProblems: 1000 };
+const defaultSettings = {};
 let globalSettings = defaultSettings;
 
 connection.onDidChangeConfiguration(change => {

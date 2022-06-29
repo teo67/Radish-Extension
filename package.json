@@ -8,7 +8,7 @@
 		"type": "git",
 		"url": "https://github.com/teo67/RadishExtension"
 	},
-	"publisher": "teo67",
+	"publisher": "TheoGerst",
 	"categories": [],
 	"icon": "icon.png",
 	"keywords": [
@@ -27,23 +27,10 @@
 		"esbuild-server": "esbuild ./server/src/server.js --bundle --outfile=out/server.js --format=cjs --platform=node"
 	},
 	"contributes": {
-		"iconThemes": [
-			{
-				"id": "radish",
-				"label": "Radish File Icon Theme",
-				"path": "./icon.json"
-			}
-		],
 		"configuration": {
 			"type": "object",
 			"title": "Configuration",
 			"properties": {
-				"radishLanguageServer.maxNumberOfProblems": {
-					"scope": "resource",
-					"type": "number",
-					"default": 100,
-					"description": "Controls the maximum number of problems produced by the server."
-				},
 				"radishLanguageServer.trace.server": {
 					"scope": "window",
 					"type": "string",
@@ -67,7 +54,11 @@
 				"extensions": [
 					".rdsh"
 				],
-				"configuration": "./language-configuration.json"
+				"configuration": "./language-configuration.json", 
+				"icon": {
+					"light": "icon.png",
+					"dark": "icon.png"
+				}
 			}
 		],
 		"grammars": [
