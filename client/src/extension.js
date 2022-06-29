@@ -3,11 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const path = require("path");
 const vscode_1 = require("vscode");
-const node_1 = require("vscode-languageclient/node");
+const node_1 = require("vscode-languageclient");
 let client;
 function activate(context) {
     // The server is implemented in node
-    const serverModule = context.asAbsolutePath(path.join('server', 'src', 'server.js'));
+    const serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
     // The debug options for the server
     // --inspect=6009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging
     const debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };

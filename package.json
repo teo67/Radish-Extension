@@ -1,7 +1,7 @@
 {
 	"name": "radish-language-extension",
 	"description": "Radish Language Extension with Node.JS",
-	"author": "Microsoft Corporation",
+	"author": "Theo Gerst",
 	"license": "MIT",
 	"version": "1.0.0",
 	"repository": {
@@ -10,6 +10,7 @@
 	},
 	"publisher": "teo67",
 	"categories": [],
+	"icon": "icon.png",
 	"keywords": [
 		"multi-root ready"
 	],
@@ -19,12 +20,17 @@
 	"activationEvents": [
 		"onLanguage:radish"
 	],
-	"main": "./client/src/extension.js",
+	"main": "./out/extension.js",
+	"scripts": {
+		"vscode:prepublish": "npm run esbuild-client -- --minify && npm run esbuild-server -- --minify",
+		"esbuild-client": "esbuild ./client/src/extension.js --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
+		"esbuild-server": "esbuild ./server/src/server.js --bundle --outfile=out/server.js --format=cjs --platform=node"
+	},
 	"contributes": {
 		"iconThemes": [
 			{
-				"id": "radish", 
-				"label": "Radish File Icon Theme", 
+				"id": "radish",
+				"label": "Radish File Icon Theme",
 				"path": "./icon.json"
 			}
 		],
@@ -50,17 +56,29 @@
 					"description": "Traces the communication between VS Code and the language server."
 				}
 			}
-		}, 
-		"languages": [{
-            "id": "radish",
-            "aliases": ["radish", "radish"],
-            "extensions": [".rdsh"],
-            "configuration": "./language-configuration.json"
-        }],
-        "grammars": [{
-            "language": "radish",
-            "scopeName": "source.radish",
-            "path": "./radish.tmLanguage.json"
-        }]
+		},
+		"languages": [
+			{
+				"id": "radish",
+				"aliases": [
+					"radish",
+					"radish"
+				],
+				"extensions": [
+					".rdsh"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "radish",
+				"scopeName": "source.radish",
+				"path": "./radish.tmLanguage.json"
+			}
+		]
+	},
+	"devDependencies": {
+		"esbuild": "^0.14.47"
 	}
 }

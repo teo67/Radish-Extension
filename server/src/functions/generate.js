@@ -7,7 +7,7 @@ const handleDependency = require('./handleDependency.js').run;
 const url = require('url');
 module.exports = async () => {
     try {
-        let newPath = path.join(__dirname, '../../../Radish-Standard-Library/').replaceAll('\\', '/');
+        let newPath = path.join(__dirname, '../Radish-Standard-Library/').replaceAll('\\', '/');
         const folders = await fs.readdir(newPath, { "encoding": "utf-8" });
         for(const folder of folders) {
             if(folder.includes('.')) {

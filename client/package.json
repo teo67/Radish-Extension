@@ -1,10 +1,10 @@
 {
 	"name": "radish-language-client",
 	"description": "Radish language client via Node.JS",
-	"author": "Microsoft Corporation",
+	"author": "Theo Gerst",
 	"license": "MIT",
 	"version": "0.0.1",
-	"publisher": "vscode",
+	"publisher": "teo67",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/teo67/RadishExtension"

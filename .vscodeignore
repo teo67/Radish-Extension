@@ -1,0 +1,6 @@
+client
+server
+.gitignore
+.gitmodules
+main.rdsh
+node_modules

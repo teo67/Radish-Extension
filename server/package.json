@@ -2,7 +2,7 @@
 	"name": "radish-language-server",
 	"description": "Radish language server via Node.JS",
 	"version": "1.0.0",
-	"author": "Microsoft Corporation",
+	"author": "Theo Gerst",
 	"license": "MIT",
 	"engines": {
 		"node": "*"
