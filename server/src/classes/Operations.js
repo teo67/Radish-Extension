@@ -509,6 +509,10 @@ class Operations {
         const startchars = [];
         let next = null;
         let done = false;
+        let lastI = 0;
+        const add = () => {
+            this.tokendependencies.push(new TokenDependency(returned.detail, startlines.slice(lastI), startchars.slice(lastI), returning.slice(lastI), this.cs, returned.baseScope, null, returned.raw.concat(returning.slice(0, lastI)), returned.imported, returned.linkedscope));
+        } // a lot of array slicing but come on this is javascript literally the fastest language smh my head my head
         while(!done) {
             next = this.Read();
             if(next.Type == TokenTypes.SYMBOL) {
@@ -517,13 +521,17 @@ class Operations {
                     if(next.Type == TokenTypes.SYMBOL) {
                         if(next.Val == "(" && acceptParens) {
                             stillOriginal = false;
-                            this.ParseLi();
-                            this.RequireSymbol(")");
                             if(!isUnknown) {
+                                if(returning.length > lastI) {
+                                    add();
+                                    lastI = returning.length + 1;
+                                }
                                 returning.push("()");
                                 startlines.push(-1);
                                 startchars.push(-1);
                             }
+                            this.ParseLi();
+                            this.RequireSymbol(")");
                             next = this.Read();
                         } else if(next.Val == "[") {
                             this.ParseExpression();
@@ -553,8 +561,8 @@ class Operations {
             }
         }
         this.Stored = next;
-        if(returning.length > 0) {
-            this.tokendependencies.push(new TokenDependency(returned.detail, startlines, startchars, returning, this.cs, returned.baseScope, null, returned.raw, returned.imported, returned.linkedscope)); // make it so it doesnt include previous stuff
+        if(returning.length > lastI) {
+            add();
         }
         if(isUnknown) {
             return new ReturnType(CompletionItemKind.Variable);
