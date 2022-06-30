@@ -111,6 +111,14 @@ const signature = new Response(s => {
             current += paramstring[i];
         }
     }
+
+    if(paramstring.endsWith("(fill)") && params.length > 0) {
+        params[params.length - 1].documentation.value += `  
+        **fill**: All arguments passed into the function from here will be compiled into an array and passed to this parameter.`;
+        if(numCommas >= params.length) {
+            numCommas = params.length - 1;
+        }
+    }
     
     return {
         signatures: [

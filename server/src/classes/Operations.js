@@ -271,7 +271,8 @@ class Operations {
                 vars: [], 
                 strings: [], 
                 tokens: [], 
-                deps: []
+                deps: [], 
+                fill: false
             };
         }
         while(true) { 
@@ -342,7 +343,8 @@ class Operations {
             vars: returning, 
             strings: returningString,
             tokens: returningTokens, 
-            deps: returningDeps
+            deps: returningDeps, 
+            fill: fill
         };
     }
 
@@ -690,6 +692,9 @@ class Operations {
                     }
                 }
                 desc += " }";
+                if(params.fill) {
+                    desc += " (fill)";
+                }
                 for(const token of params.tokens) {
                     token.reference = _cs;
                 }
