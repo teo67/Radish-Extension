@@ -16,6 +16,7 @@ module.exports = (tokendependencies, operations) => {
             continue;
         }
         // only works if there is NO scope to work with
+        //console.log(gotten);
         if(gotten.length == 1 && dep.lines[0] >= 0 && dep.chars[0] >= 0) {
             const goodIndex = goodToGo.indexOf(gotten[0]);
             if(goodIndex == -1) {

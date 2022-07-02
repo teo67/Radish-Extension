@@ -567,7 +567,7 @@ class Operations {
             add();
         }
         if(isUnknown) {
-            return new ReturnType(CompletionItemKind.Variable);
+            return new ReturnType(CompletionItemKind.Variable, "ANY");
         }
         if(stillOriginal) {
             return returned;
@@ -597,7 +597,7 @@ class Operations {
                             skip = true;
                         }
                     }
-                    this.tokendependencies.push(new TokenDependency("", [this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, this.currentthis !== null));
+                    this.tokendependencies.push(new TokenDependency("", [this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, !!(this.currentthis && this.currentthis.properties && this.currentthis.properties == this.cs.vars)));
                     const afterNext = this.Read();
                     if(afterNext.Type == TokenTypes.SYMBOL && afterNext.Val == "{") {
                         prop = true;
@@ -666,7 +666,7 @@ class Operations {
                 }
                 this.AddDiagnostic(`Expecting a variable name instead of ${next.Val}! (note that 'this', 'super', and 'prototype' are reserved names and cannot be reused)`);
                 this.Stored = next;
-                return new ReturnType(CompletionItemKind.Variable);
+                return new ReturnType(CompletionItemKind.Variable, "ANY");
             }
             if(returned.Val == "uproot") {
                 const next = this.Read();
@@ -738,10 +738,6 @@ class Operations {
                 const next = this.ParseExpression(); // negatives is "one phrase" level (no whitespace) so it feels right
                 if(next.detail.startsWith('[string :')) {
                     let val = next.detail.slice(10, next.detail.length - 1);
-                    const lastI = val.lastIndexOf('/');
-                    if(lastI != -1) {
-                        val = val.slice(0, lastI) + val.slice(lastI).toLowerCase(); // file names are always lowercase in uris
-                    }
                     let path = this.path;
                     while(val.startsWith("../")) {
                         val = val.slice(3);
@@ -881,7 +877,7 @@ class Operations {
             }
         }
         this.AddDiagnostic(returned.Val.length > 0 ? `Could not parse value: ${returned.Val}` : 'Expected another token!');
-        return new ReturnType(CompletionItemKind.Variable); // nothing
+        return new ReturnType(CompletionItemKind.Variable, "ANY"); // nothing
     }
 }
 module.exports = Operations;

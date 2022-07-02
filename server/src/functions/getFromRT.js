@@ -7,6 +7,9 @@ const global = require('../global.js');
 const CompletionItemKind = global.server2.CompletionItemKind;
 
 const getFromRT = (operations, dep, ref, raw, baseScope, inherited = null, linkedscope = null, imported = null, detail = "", propertycreation = false, playground = false) => { // false = cancel
+    if(detail == "ANY") {
+        return playground ? [] : null;
+    }
     let _inherited = null;
     if(inherited !== null) {
         _inherited = exporting.dep(operations, inherited, dep, playground);
