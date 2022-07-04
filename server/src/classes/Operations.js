@@ -258,14 +258,14 @@ class Operations {
         this.RequireSymbol("}");
     }
 
-    ParseLi(params = false) { 
+    ParseLi(params = false, _enum = false) { 
         let returning = [];
         let returningString = [];
         let returningTokens = [];
         let returningDeps = [];
         let read = this.Read();
         let fill = false;
-        if(read.Type == TokenTypes.SYMBOL && (read.Val == "]" || read.Val == ")")) { // empty list
+        if(read.Type == TokenTypes.SYMBOL && [")", "]", "}"].includes(read.Val)) { // empty list
             this.Stored = read;
             return {
                 vars: [], 
@@ -277,7 +277,9 @@ class Operations {
         }
         while(true) { 
             this.Stored = read;
-            if(params) {
+            if(_enum) {
+                returningString.push(this.Read().Val);
+            } else if(params) {
                 const doc = this.currentDocs;
                 let key = this.Read();
                 if(fill) {
@@ -329,14 +331,11 @@ class Operations {
             } else {
                 this.ParseExpression();
             }
-            
             const next = this.Read();
-
             if(!(next.Type == TokenTypes.SYMBOL && next.Val == ",")) {
                 this.Stored = next;
                 break;
             }
-
             read = this.Read();
         }
         return {
@@ -727,6 +726,9 @@ class Operations {
             if(returned.Val == "null") {
                 return new ReturnType(CompletionItemKind.Variable, `[null]`);
             }
+            if(returned.Val == "PATH") {
+                return new ReturnType(CompletionItemKind.Variable, "[string]");
+            }
             if(returned.Val == "all") {
                 return new ReturnType(CompletionItemKind.Variable, "[object]", [], this.cs.vars);
             }
@@ -806,6 +808,18 @@ class Operations {
                 this.dependencies.push(new Dependency(new ReturnType(CompletionItemKind.Variable, "", [], null, null, null, constr), this.cs, new ReturnType(CompletionItemKind.Function, "[tool] {}")));
                 this.RequireSymbol("}");
                 return new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
+            }
+            if(returned.Val == "enum") {
+                this.RequireSymbol("{");
+                const returned = this.ParseLi(false, true).strings;
+                this.RequireSymbol("}");
+                const arr = [];
+                for(let i = 0; i < returned.length; i++) {
+                    const newvar = new Variable(returned[i], CompletionItemKind.Variable, `[number : ${i}]`);
+                    newvar.evaluated = true;
+                    arr.push(newvar);
+                }
+                return new ReturnType(CompletionItemKind.Variable, "[object : enum]", [], arr);
             }
             if(returned.Val == "new") {
                 const next = this.ParseCalls(false);

@@ -21,7 +21,7 @@ const autoCompleteDefaults = [
     "harvest", "h", "cancel", "continue", "end", "fill",
     "new", "null", "class",
     "public", "private", "protected", "static",
-    "try", "catch", "throw", "import", "all"
+    "try", "catch", "throw", "import", "all", "PATH", "enum"
 ];
 const assessTime = 50;
 const uselib = true; // only set to false if you don't want any standard library

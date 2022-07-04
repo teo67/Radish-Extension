@@ -33,7 +33,7 @@
 	"repository": {
 		"keywords": {
 			"name": "keyword.control.radish",
-			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill)\\b"
+			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum)\\b"
 		},
 		"operators": {
 			"name": "keyword.operator.radish",
@@ -56,7 +56,7 @@
 		"constants": {
 			"patterns": [{
 				"name": "constant.language.radish",
-				"match": "\\b(yes|no|null|all)\\b"
+				"match": "\\b(yes|no|null|all|PATH)\\b"
 			}, {
 				"name": "constant.numeric.radish",
 				"match": "([0-9])([0-9.]*?)(?![0-9\\.])"
