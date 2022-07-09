@@ -817,6 +817,7 @@ class Operations {
                 for(let i = 0; i < returned.length; i++) {
                     const newvar = new Variable(returned[i], CompletionItemKind.Variable, `[number : ${i}]`);
                     newvar.evaluated = true;
+                    newvar.inherited = this.protos.Number;
                     arr.push(newvar);
                 }
                 return new ReturnType(CompletionItemKind.Variable, "[object : enum]", [], arr);
