@@ -126,22 +126,9 @@ class Operations {
         this.PrevRow = this.reader.row;
         return lex(this.reader, this);
     }
-    ParseScope(scope = null, setthis = false, setfun = false) { //returns scope
-        const saved = this.cs;
-        const newscope = scope === null ? new Scope(this.Row, this.Col, this.cs) : scope;
-        this.cs = newscope;
-        if(saved === null) {
-            const filereturn = new Variable("(anonymous file harvest)", CompletionItemKind.Variable, "[variable]");
-            this.cs.returns = filereturn;
-        }
-        if(setthis) {
-            this.currentthis.properties = newscope.vars;
-        }
-        if(setfun) {
-            this.currentFun = newscope;
-        }
+    ParseInner(nocancel = false) {
         let read = this.Read();
-        while(read.Type != TokenTypes.ENDOFFILE && !(read.Type == TokenTypes.SYMBOL && read.Val == "}")) {
+        while(read.Type != TokenTypes.ENDOFFILE && !(read.Type == TokenTypes.SYMBOL && read.Val == "}") && !(read.Type == TokenTypes.OPERATOR && (read.Val == "case" || read.Val == "default"))) {
             if(read.Type == TokenTypes.OPERATOR && read.Val == "if") {
                 this.Stored = read;
                 this.ParseIfs();
@@ -152,6 +139,32 @@ class Operations {
                 this.RequireSymbol("{");
                 this.ParseScope();
                 this.RequireSymbol("}");
+            } else if(read.Type == TokenTypes.OPERATOR && read.Val == "switch") {
+                this.RequireSymbol("(");
+                this.ParseExpression();
+                this.RequireSymbol(")");
+                this.RequireSymbol("{");
+                let next = this.Read();
+                let hasDef = false;
+                let diagnosed = false;
+                while(next.Type != TokenTypes.ENDOFFILE && !(next.Type == TokenTypes.SYMBOL && next.Val == "}")) {
+                    if(next.Type == TokenTypes.OPERATOR && next.Val == "default") {
+                        if(hasDef) {
+                            this.AddDiagnostic("Defaults can only be declared once inside a switch!");
+                        }
+                        hasDef = true;
+                        next = this.ParseInner(true);
+                    } else if(next.Type == TokenTypes.OPERATOR && next.Val == "case") {
+                        this.ParseExpression();
+                        next = this.ParseInner(true); // this way a new scope isnt actually created
+                    } else {
+                        if(!diagnosed) {
+                            diagnosed = true;
+                            this.AddDiagnostic("Switches must begin with either a default or a case!");
+                        }
+                        next = this.Read();
+                    }
+                }
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "for") {
                 this.RequireSymbol("(");
                 this.ScopeWith(() => {
@@ -161,11 +174,36 @@ class Operations {
                     this.ParseScope();
                     this.RequireSymbol("}");
                 });
+            } else if(read.Type == TokenTypes.OPERATOR && read.Val == "each") {
+                this.RequireSymbol("(");
+                this.ScopeWith(() => {
+                    const doc = this.currentDocs;
+                    let next = this.Read();
+                    const newvar = new Variable(next.Val, CompletionItemKind.Variable, "[variable]");
+                    if(doc !== null) {
+                        const parsed = parseDoc(doc);
+                        newvar.inner.documentation = parsed[0];
+                        newvar.params = parsed[1];
+                    }
+                    this.cs.vars.push(newvar);
+                    this.tokendependencies.push(new TokenDependency("", [this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, false));
+                    const of = this.Read();
+                    if(of.Type != TokenTypes.OPERATOR || of.Val != "of") {
+                        this.AddDiagnostic(`Expecting 'of' instead of '${of.Val}'!`);
+                    }
+                    this.ParseExpression();
+                    this.RequireSymbol(")");
+                    this.RequireSymbol("{");
+                    this.ParseScope();
+                    this.RequireSymbol("}");
+                });
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "cancel" || read.Val == "continue" || read.Val == "end")) {
                 // nothing to do here
-                const after = this.Read();
-                this.cs.markUnused(this.lastTrim);
-                this.Stored = after;
+                if(!nocancel) {
+                    const after = this.Read();
+                    this.cs.markUnused(this.lastTrim);
+                    this.Stored = after;
+                }
             } else if(read.Type == TokenTypes.OPERATOR && (read.Val == "harvest" || read.Val == "h")) {
                 const docs = this.currentDocs;
                 const ret = this.ParseExpression();
@@ -184,10 +222,11 @@ class Operations {
                 }
                 const return1 = new ReturnType(ReturnType.Reference, "", ["()"], null, null, fun);
                 this.dependencies.push(new Dependency(return1, this.cs, ret));
-                
-                const after = this.Read();
-                this.cs.markUnused(this.lastTrim);
-                this.Stored = after;
+                if(!nocancel) {
+                    const after = this.Read();
+                    this.cs.markUnused(this.lastTrim);
+                    this.Stored = after;
+                }
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "try") {
                 this.RequireSymbol("{");
                 this.ParseScope();
@@ -207,7 +246,23 @@ class Operations {
             }
             read = this.Read();
         }
-        
+        return read;
+    }
+    ParseScope(scope = null, setthis = false, setfun = false, switchin = false) { //returns scope
+        const saved = this.cs;
+        const newscope = scope === null ? new Scope(this.Row, this.Col, this.cs) : scope;
+        this.cs = newscope;
+        if(saved === null) {
+            const filereturn = new Variable("(anonymous file harvest)", CompletionItemKind.Variable, "[variable]");
+            this.cs.returns = filereturn;
+        }
+        if(setthis) {
+            this.currentthis.properties = newscope.vars;
+        }
+        if(setfun) {
+            this.currentFun = newscope;
+        }
+        const read = this.ParseInner();
         newscope.end(this.Row, this.Col - read.Val.length, this); // we subtract 1 to ignore the last bracket
         this.Stored = read;
         if(saved !== null) {

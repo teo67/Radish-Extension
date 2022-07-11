@@ -12,7 +12,7 @@ class Response {
             return returned;
         } catch(e) {
             console.log(`Response ${this.name} failed!`);
-            //console.log(e);
+            console.log(e);
             return this.default;
         }
     }
