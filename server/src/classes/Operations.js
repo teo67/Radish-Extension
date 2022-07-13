@@ -476,7 +476,7 @@ class Operations {
     }
 
     IsComparators(val, current, previous) {
-        if(["==", ">=", "<=", ">", "<", "!="].includes(val)) {
+        if(["=", ">=", "<=", ">", "<", "!="].includes(val)) {
             this[previous]();
             return new ReturnType(CompletionItemKind.Variable, "[boolean]");
         }
