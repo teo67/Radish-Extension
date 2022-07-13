@@ -440,7 +440,23 @@ class Operations {
     }
 
     ParseExpression() {
-        return this.Parse("ParseCombiners", "IsExpression");
+        return this.Parse("ParseTernaries", "IsExpression");
+    }
+
+    ParseTernaries() {
+        const ret = this.ParseCombiners();
+        const next = this.Read();
+        if(next.Type == TokenTypes.OPERATOR && next.Val == "?") {
+            const ret1 = this.ParseTernaries();
+            const comma = this.Read();
+            if(comma.Type != TokenTypes.SYMBOL || comma.Val != ",") {
+                this.AddDiagnostic("Expecting a comma to complete the ternary!");
+            }
+            this.ParseTernaries();
+            return ret1;
+        }
+        this.Stored = next;
+        return ret;
     }
 
     IsCombiners(val, current, previous) {
