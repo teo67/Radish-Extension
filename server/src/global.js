@@ -20,7 +20,7 @@ const autoCompleteDefaults = [
     "dig", "d", "tool", "t", "plant", "p", "uproot",
     "harvest", "h", "cancel", "continue", "end", "fill",
     "new", "null", "class",
-    "public", "private", "protected", "static",
+    "public", "private", "protected", "static", "type",
     "try", "catch", "throw", "import", "all", "PATH", "enum", "each", "of", "switch", "case", "default"
 ];
 const assessTime = 50;

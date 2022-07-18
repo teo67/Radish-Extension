@@ -33,7 +33,7 @@
 	"repository": {
 		"keywords": {
 			"name": "keyword.control.radish",
-			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum|each|of|switch|case|default)\\b"
+			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum|each|of|switch|case|default|type)\\b"
 		},
 		"operators": {
 			"name": "keyword.operator.radish",

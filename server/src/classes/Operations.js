@@ -743,6 +743,10 @@ class Operations {
                 this.tokendependencies.push(new TokenDependency("", [this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, null));
                 return new ReturnType(CompletionItemKind.Variable, "", [ next.Val ]);
             }
+            if(returned.Val == "type") {
+                this.ParseExpression();
+                return new ReturnType(CompletionItemKind.Variable, "[object]");
+            }
             if(returned.Val == "tool" || returned.Val == "t") {
                 const startline = this.Row;
                 const startchar = this.Col;

@@ -1,9 +1,0 @@
-d a p t() {
-    d z
-}
-d b p {
-    d c
-    d e p t() {
-        d f
-    }
-}
