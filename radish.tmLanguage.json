@@ -33,11 +33,11 @@
 	"repository": {
 		"keywords": {
 			"name": "keyword.control.radish",
-			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum|each|of|switch|case|default|type)\\b"
+			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum|each|of|switch|case|default|type|after)\\b"
 		},
 		"operators": {
 			"name": "keyword.operator.radish",
-			"match": "(\\b(plant|p)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^\\?])"
+			"match": "(\\b(plant|p|equals|not|and|or)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^\\?])"
 		},
 		"modifiers": {
 			"name": "storage.modifier.radish",

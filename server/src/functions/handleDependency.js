@@ -14,15 +14,19 @@ const handleDependency = (dep, operations) => {
         //console.log('alr handled');
         return; // this could save some time
     }
-    const found = passInRT(operations, dep, dep.target, true);
-    if(found === null) { // no var or failed somewhere
-        //console.log('no found');
-        return;
-    }
-    const foundTarget = found[found.length - 1];
-    if(foundTarget.evaluated || (foundTarget.lock && !dep.override)) { // already eval'd
-        //console.log('alr evald');
-        return;
+    let found; 
+    let foundTarget;
+    if(dep.target != "SKIP") {
+        found = passInRT(operations, dep, dep.target, true);
+        if(found === null) { // no var or failed somewhere
+            //console.log('no found');
+            return;
+        }
+        foundTarget = found[found.length - 1];
+        if(foundTarget.evaluated || (foundTarget.lock && !dep.override)) { // already eval'd
+            //console.log('alr evald');
+            return;
+        }
     }
     let foundSet = passInRT(operations, dep, dep.find);
     if(foundSet === null) { 
@@ -35,7 +39,7 @@ const handleDependency = (dep, operations) => {
     }
     //console.log('success');
     foundSet = foundSet[foundSet.length - 1];
-    if(dep.find.type == CompletionItemKind.Class) {
+    if(dep.find.type == CompletionItemKind.Class && dep.target == "SKIP") {
         let construct = null;
         for(let i = 0; i < foundSet.properties.length; i++) {
             if(foundSet.properties[i].inner.label == "constructor") {
@@ -71,6 +75,8 @@ const handleDependency = (dep, operations) => {
         }
         
         proto.inherited = saved.inherited === null ? operations.protos.Object : saved.inherited;
+        dep.handled = true;
+        return;
     }
     if(dep.find.linkedscope !== null) {
         if(found.length > 1) {

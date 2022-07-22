@@ -102,6 +102,15 @@ class Operations {
         }
     }
 
+    OptionalSymbol(input) {
+        const next = this.Read();
+        if(next.Type == TokenTypes.SYMBOL && next.Val == input) {
+            return true;
+        }
+        this.Stored = next;
+        return false;
+    }
+
     get Row() {
         if(this.Stored == null) {
             return this.reader.row;
@@ -133,16 +142,18 @@ class Operations {
                 this.Stored = read;
                 this.ParseIfs();
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "while") {
-                this.RequireSymbol("(");
+                const had = this.OptionalSymbol("(");
                 this.ParseExpression();
-                this.RequireSymbol(")");
+                if(had) {
+                    this.RequireSymbol(")");
+                }
                 this.RequireSymbol("{");
                 this.ParseScope();
                 this.RequireSymbol("}");
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "switch") {
-                this.RequireSymbol("(");
+                const had = this.OptionalSymbol("(");
                 this.ParseExpression();
-                this.RequireSymbol(")");
+                if(had) {this.RequireSymbol(")");}
                 this.RequireSymbol("{");
                 let next = this.Read();
                 let hasDef = false;
@@ -166,16 +177,18 @@ class Operations {
                     }
                 }
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "for") {
-                this.RequireSymbol("(");
+                const had = this.OptionalSymbol("(");
                 this.ScopeWith(() => {
                     this.ParseLi();
-                    this.RequireSymbol(")");
+                    if(had) {
+                        this.RequireSymbol(")");
+                    }
                     this.RequireSymbol("{");
                     this.ParseScope();
                     this.RequireSymbol("}");
                 });
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "each") {
-                this.RequireSymbol("(");
+                const had = this.OptionalSymbol("(");
                 this.ScopeWith(() => {
                     const doc = this.currentDocs;
                     let next = this.Read();
@@ -192,7 +205,9 @@ class Operations {
                         this.AddDiagnostic(`Expecting 'of' instead of '${of.Val}'!`);
                     }
                     this.ParseExpression();
-                    this.RequireSymbol(")");
+                    if(had) {
+                        this.RequireSymbol(")");
+                    }
                     this.RequireSymbol("{");
                     this.ParseScope();
                     this.RequireSymbol("}");
@@ -305,9 +320,11 @@ class Operations {
     }
 
     ParseIf() { // single scope
-        this.RequireSymbol("(");
+        const had = this.OptionalSymbol("(");
         this.ParseExpression();
-        this.RequireSymbol(")");
+        if(had) {
+            this.RequireSymbol(")");
+        }
         this.RequireSymbol("{");
         this.ParseScope();
         this.RequireSymbol("}");
@@ -460,7 +477,7 @@ class Operations {
     }
 
     IsCombiners(val, current, previous) {
-        if(val == "||" || val == "&&") {
+        if(val == "||" || val == "&&" || val == "or" || val == "and") {
             this[previous]();
             return new ReturnType(CompletionItemKind.Variable, "[boolean]");
         }
@@ -549,7 +566,7 @@ class Operations {
                 this.ParseNegatives();
                 return new ReturnType(CompletionItemKind.Variable, "[number]");
             }
-            if(returned.Val == "!") {
+            if(returned.Val == "!" || returned.Val == "not") {
                 this.ParseNegatives();
                 return new ReturnType(CompletionItemKind.Variable, "[boolean]");
             }
@@ -863,12 +880,11 @@ class Operations {
             if(returned.Val == "class") {
                 const next = this.Read();
                 let inherited = null;
-                if(next.Type == TokenTypes.SYMBOL && next.Val == ":") {
+                if(next.Type == TokenTypes.OPERATOR && next.Val == "after") {
                     inherited = this.ParseExpression();
                 } else {
                     this.Stored = next;
                 }
-                
                 this.RequireSymbol("{");
                 const prevthis = this.currentthis;
                 this.currentthis = {
@@ -882,7 +898,21 @@ class Operations {
                 constr.addsuper = inherited;
                 this.dependencies.push(new Dependency(new ReturnType(CompletionItemKind.Variable, "", [], null, null, null, constr), this.cs, new ReturnType(CompletionItemKind.Function, "[tool] {}")));
                 this.RequireSymbol("}");
-                return new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
+                const rt = new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
+                this.dependencies.push(new Dependency("SKIP", this.cs, rt)); // add a dep to register class
+                return new ReturnType(CompletionItemKind.Class, "", [], null, null, null, constr);
+            }
+            if(returned.Val == "after") {
+                const inherited = this.ParseExpression();
+                const prevthis = this.currentthis;
+                this.currentthis = {
+                    inherited: inherited
+                };
+                this.RequireSymbol("{");
+                const cs = this.ParseScope(null, true);
+                this.RequireSymbol("}");
+                this.currentthis = prevthis;
+                return new ReturnType(CompletionItemKind.Variable, "[object]", [], cs.vars, inherited);
             }
             if(returned.Val == "enum") {
                 this.RequireSymbol("{");
