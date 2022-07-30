@@ -187,6 +187,15 @@ class Operations {
                     this.ParseScope();
                     this.RequireSymbol("}");
                 });
+            } else if(read.Type == TokenTypes.OPERATOR && read.Val == "repeat") {
+                const had = this.OptionalSymbol("(");
+                this.ParseExpression();
+                if(had) {
+                    this.RequireSymbol(")");
+                }
+                this.RequireSymbol("{");
+                this.ParseScope();
+                this.RequireSymbol("}");
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "each") {
                 const had = this.OptionalSymbol("(");
                 this.ScopeWith(() => {

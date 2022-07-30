@@ -16,7 +16,7 @@ const cached = {};
 const importCache = {};
 const autoCompleteDefaults = [
     "if", "elseif", "else", 
-    "while", "for", 
+    "while", "for", "repeat", 
     "dig", "d", "tool", "t", "plant", "p", "uproot",
     "harvest", "h", "cancel", "continue", "end", "fill",
     "new", "null", "class",
