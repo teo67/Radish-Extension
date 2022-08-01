@@ -461,6 +461,9 @@ class Operations {
             const other = this[previous]();
             this.dependencies.push(new Dependency(current, this.cs, other));
             return current; // continue in next loop
+        } else if(val == "after") {
+            this[previous]();
+            return current;
         }
         return null; // nothing happened
     }
@@ -910,18 +913,6 @@ class Operations {
                 const rt = new ReturnType(CompletionItemKind.Class, "", [], cs.vars, inherited);
                 this.dependencies.push(new Dependency("SKIP", this.cs, rt)); // add a dep to register class
                 return new ReturnType(CompletionItemKind.Class, "", [], null, null, null, constr);
-            }
-            if(returned.Val == "after") {
-                const inherited = this.ParseExpression();
-                const prevthis = this.currentthis;
-                this.currentthis = {
-                    inherited: inherited
-                };
-                this.RequireSymbol("{");
-                const cs = this.ParseScope(null, true);
-                this.RequireSymbol("}");
-                this.currentthis = prevthis;
-                return new ReturnType(CompletionItemKind.Variable, "[object]", [], cs.vars, inherited);
             }
             if(returned.Val == "enum") {
                 this.RequireSymbol("{");
