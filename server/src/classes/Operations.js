@@ -452,7 +452,7 @@ class Operations {
     IsExpression(val, current, previous) {
         if(val[val.length - 1] == "=") {
             const edited = val.slice(0, val.length - 1);
-            const others = ["IsCombiners", "IsComparators", "IsTerms", "IsFactors"];
+            const others = ["IsCombiners", "IsComparators", "IsShifts", "IsTerms", "IsFactors", "IsExponent"];
             for(const other of others) {
                 const returned = this[other](edited, current, previous);
                 if(returned !== null) {
@@ -785,52 +785,65 @@ class Operations {
             if(returned.Val == "tool" || returned.Val == "t") {
                 const startline = this.Row;
                 const startchar = this.Col;
-                this.RequireSymbol("(");
-                const params = this.ParseLi(true);
-                this.RequireSymbol(")");
-                this.RequireSymbol("{");
+                const next = this.OptionalSymbol("(");
+                let params = null;
+                if(next) {
+                    params = this.ParseLi(true);
+                    this.RequireSymbol(")");
+                }
+                const next1 = this.OptionalSymbol("{");
                 const _cs = new Scope(this.Row, this.Col, this.cs);
-                _cs.startchar = startchar;
-                _cs.startline = startline;
-                
-                let desc = "[tool] { ";
-                for(let i = 0; i < params.strings.length; i++) {
-                    desc += params.strings[i];
-                    if(i < params.strings.length - 1) {
-                        desc += ", ";
-                    }
-                }
-                desc += " }";
-                if(params.fill) {
-                    desc += " (fill)";
-                }
-                for(const token of params.tokens) {
-                    token.reference = _cs;
-                }
-                for(const dep of params.deps) {
-                    dep.reference = _cs;
-                }
-                _cs.vars = _cs.vars.concat(params.vars);
-                
-                const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
-                const _super = new Variable("super", CompletionItemKind.Variable, "[variable]");
-                _super.ignore = true;
-                _this.ignore = true;
-                _cs.vars.push(_this);
-                _cs.vars.push(_super);
-                if(this.currentthis !== null) {
-                    this.dependencies.push(new Dependency(
-                        new ReturnType(ReturnType.Reference, "", ["this"]), 
-                        _cs, 
-                        new ReturnType(CompletionItemKind.Variable, "[object]", [], this.currentthis.properties, this.currentthis.inherited)
-                    ));
-                }
                 const returns = new Variable("(anonymous harvested value)", CompletionItemKind.Variable, "[any]");
                 _cs.returns = returns;
-                const prevFun = this.currentFun;
-                this.ParseScope(_cs, false, true);
-                this.currentFun = prevFun;
-                this.RequireSymbol("}");
+                let desc = "[tool] {  }";
+                if(params != null) {
+                    desc = "[tool] { ";
+                    for(let i = 0; i < params.strings.length; i++) {
+                        desc += params.strings[i];
+                        if(i < params.strings.length - 1) {
+                            desc += ", ";
+                        }
+                    }
+                    desc += " }";
+                    if(params.fill) {
+                        desc += " (fill)";
+                    }
+                    for(const token of params.tokens) {
+                        token.reference = _cs;
+                    }
+                    for(const dep of params.deps) {
+                        dep.reference = _cs;
+                    }
+                    _cs.vars = _cs.vars.concat(params.vars);
+                }
+                if(next1) {
+                    _cs.startchar = startchar;
+                    _cs.startline = startline;
+                    const _this = new Variable("this", CompletionItemKind.Variable, "[variable]");
+                    const _super = new Variable("super", CompletionItemKind.Variable, "[variable]");
+                    _super.ignore = true;
+                    _this.ignore = true;
+                    _cs.vars.push(_this);
+                    _cs.vars.push(_super);
+                    if(this.currentthis !== null) {
+                        this.dependencies.push(new Dependency(
+                            new ReturnType(ReturnType.Reference, "", ["this"]), 
+                            _cs, 
+                            new ReturnType(CompletionItemKind.Variable, "[object]", [], this.currentthis.properties, this.currentthis.inherited)
+                        ));
+                    }
+                    const prevFun = this.currentFun;
+                    this.ParseScope(_cs, false, true);
+                    this.currentFun = prevFun;
+                    this.RequireSymbol("}");
+                } else {
+                    const prev = this.cs;
+                    this.cs = _cs;
+                    this.dependencies.push(new Dependency(new ReturnType(
+                        CompletionItemKind.Variable, "", [], null, null, null, returns
+                    ), _cs, this.ParseExpression()));
+                    this.cs = prev;
+                }
                 return new ReturnType(CompletionItemKind.Function, desc, [], null, null, _cs);
             }
             if(returned.Val == "null") {
