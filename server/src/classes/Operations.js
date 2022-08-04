@@ -258,7 +258,9 @@ class Operations {
                 const next = this.Read();
                 if(next.Type == TokenTypes.OPERATOR && next.Val == "catch") {
                     this.RequireSymbol("{");
-                    this.ParseScope();
+                    const _cs = new Scope(this.Row, this.Col, this.cs);
+                    _cs.addVar(new Variable("error", CompletionItemKind.Variable, "[variable]"));
+                    this.ParseScope(_cs);
                     this.RequireSymbol("}");
                 } else {
                     this.AddDiagnostic("Expecting catch phrase after try {}");
@@ -489,7 +491,11 @@ class Operations {
     }
 
     IsCombiners(val, current, previous) {
-        if(val == "||" || val == "&&" || val == "or" || val == "and") {
+        if(["||", "&&", "or", "and"].includes(val)) {
+            this[previous]();
+            return this.Convert(current);
+        }
+        if(["xor", "nand", "nor", "xnor"].includes(val)) {
             this[previous]();
             return new ReturnType(CompletionItemKind.Variable, "[boolean]");
         }

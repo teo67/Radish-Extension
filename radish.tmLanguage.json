@@ -37,7 +37,7 @@
 		},
 		"operators": {
 			"name": "keyword.operator.radish",
-			"match": "(\\b(plant|p|equals|not|and|or)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^\\?])"
+			"match": "(\\b(plant|p|equals|not|and|or|xor|nand|nor|xnor)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^\\?])"
 		},
 		"modifiers": {
 			"name": "storage.modifier.radish",

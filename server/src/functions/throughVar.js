@@ -1,6 +1,7 @@
-const throughVar = (props, inherited, select = vari => {
+const throughVar = (props, inherited, alr = [], select = vari => {
     return vari;
 }) => {
+    
     let returning = [];
     let blacklist = [];
     for(const vari of props) {
@@ -9,8 +10,9 @@ const throughVar = (props, inherited, select = vari => {
             blacklist.push(vari.inner.label);
         }
     }
-    if(inherited !== null) {
-        const returned = throughVar(inherited.properties, inherited.inherited);
+    if(inherited !== null && !alr.includes(inherited)) {
+        alr.push(inherited);
+        const returned = throughVar(inherited.properties, inherited.inherited, alr);
         for(const vari of returned) {
             if(!blacklist.includes(vari.inner.label)) {
                 returning.push(select(vari));
