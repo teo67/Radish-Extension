@@ -8,9 +8,9 @@ const through = (scope, position, list = true, bs = null) => {
             continue;
         }
         if(!list) {
-            return through(inner, position, false, bs);
+            return through(inner, position, false, -1);
         }
-        const returned = through(inner, position, list, bs);
+        const returned = through(inner, position, list, -1);
         for(const ret of returned) {
             returning.push(ret);
             blacklist.push(ret.inner.label);
@@ -18,9 +18,17 @@ const through = (scope, position, list = true, bs = null) => {
         break;
     }
     if(list) {
-        for(const vari of scope.vars.concat(bs === null ? baseScope : bs)) {
+        for(const vari of scope.vars) {
             if(!vari.ignore && !blacklist.includes(vari.inner.label)) {
                 returning.push(vari);
+                blacklist.push(vari.inner.label);
+            }
+        }
+        if(bs != -1) {
+            for(const vari of bs === null ? baseScope : bs) {
+                if(!vari.ignore && !blacklist.includes(vari.inner.label)) {
+                    returning.push(vari);
+                }
             }
         }
     }

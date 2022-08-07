@@ -142,18 +142,12 @@ class Operations {
                 this.Stored = read;
                 this.ParseIfs();
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "while") {
-                const had = this.OptionalSymbol("(");
                 this.ParseExpression();
-                if(had) {
-                    this.RequireSymbol(")");
-                }
                 this.RequireSymbol("{");
                 this.ParseScope();
                 this.RequireSymbol("}");
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "switch") {
-                const had = this.OptionalSymbol("(");
                 this.ParseExpression();
-                if(had) {this.RequireSymbol(")");}
                 this.RequireSymbol("{");
                 let next = this.Read();
                 let hasDef = false;
@@ -188,11 +182,7 @@ class Operations {
                     this.RequireSymbol("}");
                 });
             } else if(read.Type == TokenTypes.OPERATOR && read.Val == "repeat") {
-                const had = this.OptionalSymbol("(");
                 this.ParseExpression();
-                if(had) {
-                    this.RequireSymbol(")");
-                }
                 this.RequireSymbol("{");
                 this.ParseScope();
                 this.RequireSymbol("}");
@@ -331,11 +321,7 @@ class Operations {
     }
 
     ParseIf() { // single scope
-        const had = this.OptionalSymbol("(");
         this.ParseExpression();
-        if(had) {
-            this.RequireSymbol(")");
-        }
         this.RequireSymbol("{");
         this.ParseScope();
         this.RequireSymbol("}");
