@@ -30,11 +30,11 @@ const init = () => {
     for(let i = 0; i < numbers.length; i++) {
         dict[numbers[i]] = CharTypes.digit;
     }
-    const ops = "+-/*<>|&!=%\\^~?";
+    const ops = "+-/*<>|&!=%^~";
     for(let i = 0; i < ops.length; i++) {
         dict[ops[i]] = CharTypes.operators;
     }
-    const symbols = "(){}[],:";
+    const symbols = "(){}[],:\\?";
     for(let i = 0; i < symbols.length; i++) {
         dict[symbols[i]] = CharTypes.symbols;
     }

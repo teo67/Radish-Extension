@@ -12,6 +12,7 @@ const fs = require('fs');
 const CountingReader = require('./CountingReader.js');
 const handleDependency = require('../functions/handleDependency.js').run;
 const copy = require('../functions/copy.js');
+const findInScope = require('../functions/findInScope.js');
 class Dependency {
     constructor(_target, _reference, _find, _override = false) { // null for a token dep
         this.target = _target; // rt
@@ -452,6 +453,22 @@ class Operations {
         } else if(val == "after") {
             this[previous]();
             return current;
+        } else if(val == "=>") {
+            const next = this.Read();
+            
+            if(next.Type != TokenTypes.KEYWORD) {
+                this.AddDiagnostic(`Expecting a variable name instead of ${next.Val}!`);
+            }
+            let res = findInScope(next.Val, this.cs, []);
+            this.tokendependencies.push(new TokenDependency("", [this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, res == null ? !!(this.currentthis && this.currentthis.properties && this.currentthis.properties == this.cs.vars) : null));
+            if(res == null) {
+                res = new Variable(next.Val, CompletionItemKind.Variable);
+                this.cs.vars.push(res);
+            }
+            
+            const ret = new ReturnType(CompletionItemKind.Variable, "", [], null, null, null, res);
+            this.dependencies.push(new Dependency(ret, this.cs, current));
+            return ret;
         }
         return null; // nothing happened
     }
@@ -463,7 +480,7 @@ class Operations {
     ParseTernaries() {
         const ret = this.ParseCombiners();
         const next = this.Read();
-        if(next.Type == TokenTypes.OPERATOR && next.Val == "?") {
+        if(next.Type == TokenTypes.SYMBOL && next.Val == "?") {
             const ret1 = this.ParseTernaries();
             const comma = this.Read();
             if(comma.Type != TokenTypes.SYMBOL || comma.Val != ",") {
