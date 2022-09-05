@@ -29,7 +29,8 @@ const getFromRT = (operations, dep, ref, raw, baseScope, inherited = null, linke
             'obje': 'Object', 
             'numb': 'Number', 
             'bool': 'Boolean',
-            'arra': 'Array'
+            'arra': 'Array',
+            'poly': 'Poly'
         };
         const res = dict[detail.substring(1, 5)];
         if((detail.length >= 5 && (res !== undefined)) || raw.length == 0 || baseScope !== null || _inherited !== null) {

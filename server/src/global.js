@@ -29,7 +29,7 @@ const create = name => {
     return new Variable(name, server2.CompletionItemKind.Variable, "[object]", `The default object from which all Radish ${name.toLowerCase()}s extend.`);
 }
 const baseScope = [];
-for(const name of ["Object", "Array", "Boolean", "Function", "Number", "String"]) {
+for(const name of ["Object", "Array", "Boolean", "Function", "Number", "String", "Poly"]) {
     const cr = create(name);
     if(baseScope.length > 0) {
         cr.inherited = baseScope[0];

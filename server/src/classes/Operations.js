@@ -59,7 +59,7 @@ class Operations {
         this.bs = editlib ? global.baseScope : copy(global.baseScope);
         this.protos = {};
         for(const vari of this.bs) {
-            if(["Object", "String", "Function", "Boolean", "Number", "Array"].includes(vari.inner.label)) {
+            if(["Object", "String", "Function", "Boolean", "Number", "Array", "Poly"].includes(vari.inner.label)) {
                 this.protos[vari.inner.label] = vari;
             }
         }
@@ -995,8 +995,17 @@ class Operations {
         } else if(returned.Type == TokenTypes.SYMBOL) {
             if(returned.Val == "(") {
                 const rt = this.ParseExpression();
+                const next = this.Read();
+                if(next.Type == TokenTypes.SYMBOL && next.Val == ")") {
+                    return rt;
+                }
+                if(next.Type != TokenTypes.SYMBOL || next.Val != ",") {
+                    this.AddDiagnostic("Expecting either a poly-value declaration or a closing parentheses!");
+                    return rt;
+                }
+                this.ParseLi();
                 this.RequireSymbol(")");
-                return rt;
+                return new ReturnType(CompletionItemKind.Variable, "[poly]");
             } 
             if(returned.Val == "[") {
                 this.ParseLi();

@@ -37,7 +37,6 @@ module.exports = (bs, cs, position, returned, newPosition, arrayEnds) => {
                     currentreturn = current.returns;
                     current = [];
                     currentinherited = findProto(bs, 'Function');
-                    
                 }
                 continue;
             }
