@@ -65,8 +65,8 @@
 		"strings": {
 			"patterns": [{
 				"name": "string.quoted.double.radish",
-				"begin": "(?<!\\\\)('|\")",
-				"end": "(?<!\\\\)('|\")",
+				"begin": "(^|(?<=\\\\\\\\|[^\\\\]))('|\")",
+				"end": "(?<=\\\\\\\\|[^\\\\])('|\")",
 				"patterns": [
 					{
 						"name": "constant.character.escape",
