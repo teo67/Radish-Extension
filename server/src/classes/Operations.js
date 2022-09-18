@@ -462,7 +462,7 @@ class Operations {
             let res = findInScope(next.Val, this.cs, []);
             this.tokendependencies.push(new TokenDependency("", [this.Row], [this.Col - next.Val.length], [next.Val], this.cs, null, res == null ? !!(this.currentthis && this.currentthis.properties && this.currentthis.properties == this.cs.vars) : null));
             if(res == null) {
-                res = new Variable(next.Val, CompletionItemKind.Variable);
+                res = new Variable(next.Val, CompletionItemKind.Variable, "[variable]");
                 this.cs.vars.push(res);
             }
             

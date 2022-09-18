@@ -20,6 +20,7 @@ const backslashes = {};
 const init = () => {
     backslashes['n'] = '\n';
     backslashes['t'] = '\t';
+    backslashes['r'] = '\r';
     const numbers = "0123456789";
     const letters = "abcdefghijklmnopqrstuvwxyz";
     for(let i = 0; i < letters.length; i++) {
