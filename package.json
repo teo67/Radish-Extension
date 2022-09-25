@@ -3,7 +3,7 @@
 	"description": "Radish Language Extension with Node.JS",
 	"author": "Theo Gerst",
 	"license": "MIT",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/teo67/RadishExtension"

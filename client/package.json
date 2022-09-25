@@ -3,7 +3,7 @@
 	"description": "Radish language client via Node.JS",
 	"author": "Theo Gerst",
 	"license": "MIT",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"publisher": "TheoGerst",
 	"repository": {
 		"type": "git",
