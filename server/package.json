@@ -1,7 +1,7 @@
 {
 	"name": "radish-language-server",
 	"description": "Radish language server via Node.JS",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"author": "Theo Gerst",
 	"license": "MIT",
 	"engines": {

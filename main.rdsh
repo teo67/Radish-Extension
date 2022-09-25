@@ -11,7 +11,6 @@
 	        this.right plant null
 	    }
 	}
-	
 
 	dig BinaryTree plant class {
 	    dig head
