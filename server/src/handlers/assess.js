@@ -57,6 +57,8 @@ const assess = new Response(async document => {
         if(global.importCache[document.uri] !== undefined) {
             delete global.importCache[document.uri];
         }
+    } else if(global.cached[document.uri].ref.version != document.version) {
+        global.cached[document.uri].ref = document; // close and open scenario
     }
     const version = document.version;
     await new Promise((resolve, reject) => setTimeout(resolve, global.assessTime));

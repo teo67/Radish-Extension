@@ -1,6 +1,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const completion = require('./handlers/completion.js');
-const { documents, connection, documentSettings, languageserver, capabilities, tokenTypes, uselib } = require('./global.js');
+const { documents, connection, languageserver, capabilities, tokenTypes, uselib, cached } = require('./global.js');
 const assess = require('./handlers/assess.js');
 const tokens = require('./handlers/tokens.js');
 const hover = require('./handlers/hover.js');
@@ -54,19 +54,10 @@ connection.onInitialized(() => {
         connection.client.register(languageserver.DidChangeConfigurationNotification.type, undefined);
     }
 });
-
-const defaultSettings = {};
-let globalSettings = defaultSettings;
-
-connection.onDidChangeConfiguration(change => {
-    if (capabilities.configuration) {
-        documentSettings.clear();
-    } else {
-        globalSettings = ((change.settings.radishLanguageServer || defaultSettings));
-    }
-});
 documents.onDidClose(e => {
-    documentSettings.delete(e.document.getText());
+    // if(cached[e.document.uri] !== undefined) {
+    //     delete cached[e.document.uri];
+    // }
 });
 documents.onDidChangeContent(change => {
     assess.execute(change.document).then(result => {

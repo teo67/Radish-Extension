@@ -4,7 +4,7 @@ const textdocument = require("vscode-languageserver-textdocument");
 const Variable = require('./classes/Variable.js');
 const connection = (0, languageserver.createConnection)(languageserver.ProposedFeatures.all);
 const documents = new languageserver.TextDocuments(textdocument.TextDocument);
-const documentSettings = new Map();
+
 const capabilities = {
     configuration: false, 
     workspaceFolder: false,
@@ -40,5 +40,5 @@ for(const name of ["Object", "Array", "Boolean", "Function", "Number", "String",
     }
 }
 module.exports = {
-    languageserver, textdocument, connection, documents, documentSettings, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, importCache, baseScope, uselib
+    languageserver, textdocument, connection, documents, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, importCache, baseScope, uselib
 };
