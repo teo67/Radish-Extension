@@ -35,9 +35,7 @@ for(const name of ["Object", "Array", "Boolean", "Function", "Number", "String",
         cr.inherited = baseScope[0];
     }
     baseScope.push(cr);
-    if(!uselib) {
-        cr.evaluated = true;
-    }
+    cr.evaluated = true;
 }
 module.exports = {
     languageserver, textdocument, connection, documents, capabilities, cached, server2, tokenTypes, tokenKey, autoCompleteDefaults, assessTime, importCache, baseScope, uselib
