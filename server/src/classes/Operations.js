@@ -614,6 +614,8 @@ class Operations {
         let isUnknown = false; // if so return variable no matter what
         let stillOriginal = true; // if so return original lowest result
         const returned = this.ParseLowest();
+        const doc = this.currentDocs;
+
         const returning = [];
         const startlines = [];
         const startchars = [];
@@ -674,14 +676,20 @@ class Operations {
         if(returning.length > lastI) {
             add();
         }
+        let out;
         if(isUnknown) {
-            return new ReturnType(CompletionItemKind.Variable, "ANY");
+            out = new ReturnType(CompletionItemKind.Variable, "ANY");
+        } else if(stillOriginal) {
+            out = returned;
+        } else {
+            out = new ReturnType(ReturnType.Reference, returned.detail, returned.raw.concat(returning), returned.baseScope, returned.inherited, returned.linkedscope, returned.imported);
         }
-        if(stillOriginal) {
-            return returned;
+        if(doc !== null && doc.length > 2) {
+            out.documentation = parseDoc(doc);
         }
-        return new ReturnType(ReturnType.Reference, returned.detail, returned.raw.concat(returning), returned.baseScope, returned.inherited, returned.linkedscope, returned.imported);
+        return out;
     }
+
 
     ParseLowest() {
         let returned = this.Read();

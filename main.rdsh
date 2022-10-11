@@ -1,5 +1,13 @@
-dig a plant tool() {
-
+;test;
+dig a plant {
+    ;test1;
+    dig b
 }
-dig b p import "test"
- b.
+
+;test2
+@a@ weugbwieugb@;
+a.c plant t(;1;a, ;2;b, ;3;c) {
+    a
+}    
+
+holler.write()

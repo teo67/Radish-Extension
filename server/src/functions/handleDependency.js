@@ -142,6 +142,14 @@ const handleDependency = (dep, operations) => {
     }
     foundTarget.ignore = false;
     foundTarget.evaluated = true;
+    if(dep.target.documentation !== undefined) {
+        if(foundTarget.inner.documentation.length == 0) {
+            foundTarget.inner.documentation = dep.target.documentation[0];
+        }
+        if(Object.keys(foundTarget.params).length == 0) {
+            foundTarget.params = dep.target.documentation[1];
+        }
+    }
     dep.handled = true;
     
     for(const dep of foundTarget.deps) {
