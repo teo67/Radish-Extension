@@ -33,15 +33,15 @@
 	"repository": {
 		"keywords": {
 			"name": "keyword.control.radish",
-			"match": "\\b(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum|each|of|switch|case|default|type|after|repeat)\\b"
+			"match": "(if|elseif|else|for|while|harvest|h|end|cancel|continue|class|tool|t|new|try|catch|throw|import|fill|enum|each|of|switch|case|default|type|after|repeat)\\b"
 		},
 		"operators": {
 			"name": "keyword.operator.radish",
-			"match": "(\\b(plant|p|equals|not|and|or|xor|nand|nor|xnor)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^\\?])"
+			"match": "((plant|p|equals|not|and|or|xor|nand|nor|xnor)\\b)|([\\+\\-\\=\\*\\/\\%\\.\\<\\>\\!\\|\\&\\:\\~\\^\\?])"
 		},
 		"modifiers": {
 			"name": "storage.modifier.radish",
-			"match": "\\b(static|public|private|protected)\\b"
+			"match": "(static|public|private|protected)\\b"
 		},
 		"comments": {
 			"name": "comment.block.radish",
@@ -56,7 +56,7 @@
 		"constants": {
 			"patterns": [{
 				"name": "constant.language.radish",
-				"match": "\\b(yes|no|null|all|PATH)\\b"
+				"match": "(yes|no|null|all|PATH)\\b"
 			}, {
 				"name": "constant.numeric.radish",
 				"match": "([0-9])([0-9.]*?)(?![0-9\\.])"
@@ -76,13 +76,18 @@
 			}]
 		}, 
 		"declarations": {
-			"name": "storage.type.radish",
-			"match": "\\b(d|dig|uproot)\\b"
+			"patterns": [
+				{
+					"name": "storage.type.radish",
+					"match": "(d|dig|uproot)\\b"
+				}
+			]
+					
 		}, 
 		"variables": {
 			"patterns": [{
 				"name": "variable.language.radish",
-				"match": "\\b(this|super|constructor|prototype)\\b"
+				"match": "(this|super|constructor|prototype)\\b"
 			}, {
 				"name": "entity.name.function.radish",
 				"match": "([a-zA-Z\\_\\$])([a-zA-Z0-9\\_\\$]*?)(?=\\()"
