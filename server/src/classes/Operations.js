@@ -257,7 +257,7 @@ class Operations {
                     this.AddDiagnostic("Expecting catch phrase after try {}");
                     this.Stored = next;
                 }
-            } else {
+            } else if(read.Type != TokenTypes.SYMBOL || read.Val != "`") {
                 this.Stored = read;
                 this.ParseExpression();
             }
